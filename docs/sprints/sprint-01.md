@@ -54,3 +54,5 @@ Desenvolver a estrutura inicial do sistema ISTOKE e implementar a primeira funci
 ## Retrospectiva
 
 A Sprint 01 permitiu estruturar o projeto ISTOKE e iniciar o desenvolvimento da primeira funcionalidade do sistema. A equipe conseguiu organizar o ambiente de desenvolvimento, criar documentação inicial e aplicar práticas de versionamento utilizando GitHub.
+
+Atualização da documentação da Sprint 01.
