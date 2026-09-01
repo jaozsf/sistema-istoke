@@ -85,3 +85,11 @@ class ProductService:
         if not product or product.company_id != company_id:
             raise HTTPException(status_code=404, detail="Produto não encontrado pelo QR Code.")
         return product
+
+    async def get_qr_labels_pdf(self, company_id: str) -> bytes:
+        """PDF com etiqueta (QR + nome + SKU) de cada produto ativo, pronto pra imprimir e colar na caixa."""
+        products = await self.repo.get_by_company(company_id, skip=0, limit=500)
+        products = [p for p in products if p.is_active and p.qr_code]
+
+        from app.reports.qr_labels import generate_qr_labels_pdf
+        return generate_qr_labels_pdf(products)

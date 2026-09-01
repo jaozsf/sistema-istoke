@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
-import '../../../lib/core/theme/app_theme.dart';
+import '../../core/theme/app_theme.dart';
 
 // ── Metric Card ───────────────────────────────────────────────────────────────
 

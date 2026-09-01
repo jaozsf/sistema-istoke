@@ -3,7 +3,7 @@ class AppConstants {
 
   // API
   static const String baseUrl = 'http://10.0.2.2:8000/api/v1'; // Android emulator
-  // static const String baseUrl = 'http://localhost:8000/api/v1'; // iOS simulator
+  // static const String baseUrl = 'http://localhost:8000/api/v1'; // iOS simulator / web / desktop
   // static const String baseUrl = 'https://api.seudominio.com/api/v1'; // produção
 
   static const Duration connectTimeout = Duration(seconds: 15);

@@ -17,6 +17,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passCtrl  = TextEditingController();
   bool _obscure    = true;
   bool _loading    = false;
+  bool _googleLoading = false;
 
   @override
   void dispose() {
@@ -36,6 +37,23 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
     if (!mounted) return;
     setState(() => _loading = false);
+
+    final auth = ref.read(authStateProvider);
+    auth.whenOrNull(
+      data: (state) {
+        if (state.isLoggedIn) context.go('/dashboard');
+      },
+      error: (e, _) => _showError(e.toString()),
+    );
+  }
+
+  Future<void> _loginWithGoogle() async {
+    setState(() => _googleLoading = true);
+
+    await ref.read(authStateProvider.notifier).signInWithGoogle();
+
+    if (!mounted) return;
+    setState(() => _googleLoading = false);
 
     final auth = ref.read(authStateProvider);
     auth.whenOrNull(
@@ -150,12 +168,38 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                           )
                         : const Text('Entrar'),
                   ),
+                  const SizedBox(height: 20),
+
+                  // Divisor
+                  Row(
+                    children: [
+                      const Expanded(child: Divider()),
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 10),
+                        child: Text('ou', style: theme.textTheme.bodySmall),
+                      ),
+                      const Expanded(child: Divider()),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+
+                  // Login com Google
+                  OutlinedButton.icon(
+                    onPressed: _googleLoading ? null : _loginWithGoogle,
+                    icon: _googleLoading
+                        ? const SizedBox(
+                            height: 18, width: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.g_mobiledata, size: 24),
+                    label: const Text('Continuar com Google'),
+                  ),
                   const SizedBox(height: 32),
 
                   // Info
                   Center(
                     child: Text(
-                      'Acesso controlado pelo administrador.\nContate o suporte para criar uma conta.',
+                      'Primeiro acesso com Google cria sua conta automaticamente.',
                       style: theme.textTheme.bodySmall,
                       textAlign: TextAlign.center,
                     ),

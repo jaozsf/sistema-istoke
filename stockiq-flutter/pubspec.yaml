@@ -12,7 +12,6 @@ dependencies:
 
   # HTTP & API
   dio: ^5.4.3
-  retrofit: ^4.1.0
 
   # Estado
   flutter_riverpod: ^2.5.1
@@ -58,7 +57,6 @@ dev_dependencies:
   build_runner: ^2.4.9
   freezed: ^2.5.2
   json_serializable: ^6.8.0
-  retrofit_generator: ^8.1.0
   riverpod_generator: ^2.4.0
 
 flutter:
@@ -67,13 +65,13 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/lottie/
-  fonts:
-    - family: Inter
-      fonts:
-        - asset: assets/fonts/Inter-Regular.ttf
-        - asset: assets/fonts/Inter-Medium.ttf
-          weight: 500
-        - asset: assets/fonts/Inter-SemiBold.ttf
-          weight: 600
-        - asset: assets/fonts/Inter-Bold.ttf
-          weight: 700
+  # fonts: # TEMP: arquivos .ttf nao existem no repo, precisa adicionar em assets/fonts/
+  #   - family: Inter
+  #     fonts:
+  #       - asset: assets/fonts/Inter-Regular.ttf
+  #       - asset: assets/fonts/Inter-Medium.ttf
+  #         weight: 500
+  #       - asset: assets/fonts/Inter-SemiBold.ttf
+  #         weight: 600
+  #       - asset: assets/fonts/Inter-Bold.ttf
+  #         weight: 700

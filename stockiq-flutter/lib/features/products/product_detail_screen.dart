@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/stock_providers.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/models/stock_model.dart';
+import '../../shared/models/user_model.dart';
 import '../../shared/widgets/app_widgets.dart';
 
 class ProductDetailScreen extends ConsumerWidget {
@@ -15,6 +17,9 @@ class ProductDetailScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final product  = ref.watch(productDetailProvider(id));
     final user     = ref.watch(currentUserProvider);
+    final branchStock = user?.branchId != null
+        ? ref.watch(branchStockProvider(user!.branchId!))
+        : const AsyncValue<List<StockModel>>.data([]);
     final currency = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
     return Scaffold(
@@ -121,6 +126,42 @@ class ProductDetailScreen extends ConsumerWidget {
                       ],
                     ),
                   ],
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+
+            // Saldo atual (filial do usuário)
+            Card(
+              child: Padding(
+                padding: const EdgeInsets.all(16),
+                child: branchStock.when(
+                  data: (stocks) {
+                    StockModel? stock;
+                    for (final s in stocks) {
+                      if (s.productId == p.id) { stock = s; break; }
+                    }
+                    final qty = stock?.quantity ?? 0;
+                    final isLow = stock?.isLow ?? false;
+                    return Row(
+                      children: [
+                        Icon(Icons.inventory_2, color: isLow ? AppTheme.danger : AppTheme.success, size: 20),
+                        const SizedBox(width: 10),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('Saldo atual', style: Theme.of(context).textTheme.bodySmall),
+                              Text('$qty ${p.unit}', style: Theme.of(context).textTheme.titleMedium),
+                            ],
+                          ),
+                        ),
+                        if (isLow) const StatusBadge(label: 'Abaixo do mínimo', type: StatusType.danger),
+                      ],
+                    );
+                  },
+                  loading: () => const SizedBox(height: 20, child: LinearProgressIndicator()),
+                  error: (_, __) => const Text('Erro ao carregar saldo'),
                 ),
               ),
             ),

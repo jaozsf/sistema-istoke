@@ -5,7 +5,33 @@ import 'package:intl/intl.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/stock_providers.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/models/movement_model.dart';
+import '../../shared/models/product_model.dart';
 import '../../shared/widgets/app_widgets.dart';
+
+({double revenue, double profit}) _todayRevenueProfit(
+  List<MovementModel> movements,
+  List<ProductModel> products,
+) {
+  final priceById = {for (final p in products) p.id: p};
+  final now = DateTime.now();
+  double revenue = 0, profit = 0;
+  for (final m in movements) {
+    if (!m.isSaida) continue;
+    final created = DateTime.tryParse(m.createdAt);
+    if (created == null ||
+        created.year != now.year ||
+        created.month != now.month ||
+        created.day != now.day) {
+      continue;
+    }
+    final p = priceById[m.productId];
+    if (p == null) continue;
+    revenue += p.salePrice * m.quantity;
+    profit  += (p.salePrice - p.costPrice) * m.quantity;
+  }
+  return (revenue: revenue, profit: profit);
+}
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -15,7 +41,14 @@ class DashboardScreen extends ConsumerWidget {
     final user      = ref.watch(currentUserProvider);
     final lowStock  = ref.watch(lowStockProvider);
     final movements = ref.watch(movementsProvider);
+    final products  = ref.watch(productsProvider(null));
     final currency  = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
+
+    final loadingTotals = movements.isLoading || products.isLoading;
+    final totals = _todayRevenueProfit(
+      movements.valueOrNull ?? [],
+      products.valueOrNull ?? [],
+    );
 
     return Scaffold(
       appBar: AppBar(
@@ -54,24 +87,32 @@ class DashboardScreen extends ConsumerWidget {
               mainAxisSpacing: 10,
               childAspectRatio: 1.6,
               children: [
-                MetricCard(
-                  label: 'Receita hoje',
-                  value: currency.format(18420),
-                  delta: '+12% vs ontem',
-                  deltaPositive: true,
-                ),
-                MetricCard(
-                  label: 'Lucro líquido',
-                  value: currency.format(8580),
-                  delta: '+19% vs ontem',
-                  deltaPositive: true,
-                  valueColor: AppTheme.success,
-                ),
-                MetricCard(
-                  label: 'Movimentações',
-                  value: '48',
-                  delta: 'Hoje',
-                  deltaPositive: true,
+                loadingTotals
+                    ? const ShimmerCard(height: 80)
+                    : MetricCard(
+                        label: 'Receita hoje',
+                        value: currency.format(totals.revenue),
+                        delta: totals.revenue > 0 ? 'Hoje' : 'Nenhuma venda ainda',
+                        deltaPositive: true,
+                      ),
+                loadingTotals
+                    ? const ShimmerCard(height: 80)
+                    : MetricCard(
+                        label: 'Lucro líquido',
+                        value: currency.format(totals.profit),
+                        delta: totals.profit > 0 ? 'Hoje' : 'Nenhuma venda ainda',
+                        deltaPositive: true,
+                        valueColor: AppTheme.success,
+                      ),
+                movements.when(
+                  data: (items) => MetricCard(
+                    label: 'Movimentações',
+                    value: '${items.length}',
+                    delta: 'Total',
+                    deltaPositive: true,
+                  ),
+                  loading: () => const ShimmerCard(height: 80),
+                  error: (_, __) => const MetricCard(label: 'Movimentações', value: '--'),
                 ),
                 lowStock.when(
                   data: (items) => MetricCard(

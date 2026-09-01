@@ -63,6 +63,19 @@ class StockApiService {
     }
   }
 
+  /// Baixa PDF com etiqueta QR Code (nome + SKU + QR) de cada produto ativo
+  Future<List<int>> getQrLabelsPdf() async {
+    try {
+      final resp = await _dio.get<List<int>>(
+        '/products/qr-labels/pdf',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return resp.data!;
+    } on DioException catch (e) {
+      throw parseApiError(e);
+    }
+  }
+
   /// Busca produto pelo payload do QR Code escaneado
   Future<ProductModel> scanQR(String qrPayload) async {
     try {

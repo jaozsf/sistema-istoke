@@ -4,8 +4,11 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/stock_providers.dart';
+import '../../core/services/pdf_download.dart';
+import '../../core/services/stock_api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/models/product_model.dart';
+import '../../shared/models/user_model.dart';
 import '../../shared/widgets/app_widgets.dart';
 
 class ProductsScreen extends ConsumerStatefulWidget {
@@ -35,6 +38,21 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
       appBar: AppBar(
         title: const Text('Produtos'),
         actions: [
+          IconButton(
+            icon: const Icon(Icons.qr_code_2),
+            tooltip: 'Baixar etiquetas QR (PDF)',
+            onPressed: () async {
+              final messenger = ScaffoldMessenger.of(context);
+              try {
+                final bytes = await StockApiService().getQrLabelsPdf();
+                downloadBytes(bytes, 'stockiq_etiquetas_qr.pdf');
+              } catch (e) {
+                messenger.showSnackBar(
+                  SnackBar(content: Text('Erro ao baixar etiquetas: $e'), backgroundColor: AppTheme.danger),
+                );
+              }
+            },
+          ),
           if (user?.isManager ?? false)
             IconButton(
               icon: const Icon(Icons.add),

@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:dio/dio.dart';
@@ -14,28 +15,11 @@ class AuthService {
 
   Future<UserModel> signIn(String email, String password) async {
     try {
-      // 1. Autentica no Firebase
       final credential = await _auth.signInWithEmailAndPassword(
         email: email,
         password: password,
       );
-
-      // 2. Pega o ID Token do Firebase
-      final idToken = await credential.user!.getIdToken();
-
-      // 3. Troca pelo JWT interno do backend
-      final response = await _dio.post('/auth/login', data: {
-        'firebase_id_token': idToken,
-      });
-
-      final token = response.data['access_token'] as String;
-      final user  = UserModel.fromJson(response.data['user'] as Map<String, dynamic>);
-
-      // 4. Persiste token e user
-      await _storage.write(key: AppConstants.tokenKey, value: token);
-      await _storage.write(key: AppConstants.userKey, value: userModelToJson(user));
-
-      return user;
+      return await _exchangeToken(credential.user!);
     } on FirebaseAuthException catch (e) {
       throw ApiException(
         statusCode: 401,
@@ -44,6 +28,41 @@ class AuthService {
     } on DioException catch (e) {
       throw parseApiError(e);
     }
+  }
+
+  /// Login/cadastro com Google (web: popup). Conta nova é criada
+  /// automaticamente pelo backend na primeira vez (role operator).
+  Future<UserModel> signInWithGoogle() async {
+    try {
+      final credential = await _auth.signInWithPopup(GoogleAuthProvider());
+      return await _exchangeToken(credential.user!);
+    } on FirebaseAuthException catch (e) {
+      throw ApiException(
+        statusCode: 401,
+        message: e.code == 'popup-closed-by-user'
+            ? 'Login cancelado.'
+            : _firebaseMessage(e.code),
+      );
+    } on DioException catch (e) {
+      throw parseApiError(e);
+    }
+  }
+
+  /// Troca o ID Token do Firebase pelo JWT interno e persiste sessão.
+  Future<UserModel> _exchangeToken(User firebaseUser) async {
+    final idToken = await firebaseUser.getIdToken();
+
+    final response = await _dio.post('/auth/login', data: {
+      'firebase_id_token': idToken,
+    });
+
+    final token = response.data['access_token'] as String;
+    final user  = UserModel.fromJson(response.data['user'] as Map<String, dynamic>);
+
+    await _storage.write(key: AppConstants.tokenKey, value: token);
+    await _storage.write(key: AppConstants.userKey, value: userModelToJson(user));
+
+    return user;
   }
 
   // ── Logout ───────────────────────────────────────────────────────────────────
@@ -93,7 +112,5 @@ String userModelToJson(UserModel u) =>
     '"created_at":"${u.createdAt}"}';
 
 UserModel userModelFromJson(String json) {
-  // Usa UserModel.fromJson via dart:convert
-  import 'dart:convert';
   return UserModel.fromJson(jsonDecode(json) as Map<String, dynamic>);
 }

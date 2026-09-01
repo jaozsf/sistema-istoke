@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../core/providers/stock_providers.dart';
 import '../../core/services/stock_api_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -44,7 +45,8 @@ class _MovementScreenState extends ConsumerState<MovementScreen> {
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
-    if (widget.productId == null || widget.branchId == null) {
+    final branchId = widget.branchId ?? ref.read(currentUserProvider)?.branchId;
+    if (widget.productId == null || branchId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Selecione produto e filial.'), backgroundColor: AppTheme.danger),
       );
@@ -57,12 +59,13 @@ class _MovementScreenState extends ConsumerState<MovementScreen> {
         type:      _type,
         quantity:  int.parse(_qtyCtrl.text),
         productId: widget.productId!,
-        branchId:  widget.branchId!,
+        branchId:  branchId,
         notes:     _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
       );
 
       ref.invalidate(movementsProvider);
       ref.invalidate(lowStockProvider);
+      ref.invalidate(branchStockProvider(branchId));
       if (widget.productId != null) ref.invalidate(productDetailProvider(widget.productId!));
 
       if (mounted) {

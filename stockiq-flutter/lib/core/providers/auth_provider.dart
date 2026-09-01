@@ -40,6 +40,14 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     });
   }
 
+  Future<void> signInWithGoogle() async {
+    state = const AsyncLoading();
+    state = await AsyncValue.guard(() async {
+      final user = await _service.signInWithGoogle();
+      return AuthState(user: user);
+    });
+  }
+
   Future<void> signOut() async {
     state = const AsyncLoading();
     await _service.signOut();

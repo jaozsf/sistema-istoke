@@ -1,7 +1,8 @@
 from fastapi import APIRouter, Depends, Query
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import List
+import io
 from app.core.database import get_db
 from app.core.security import get_current_user, require_manager, require_admin
 from app.services.product_service import ProductService
@@ -74,6 +75,24 @@ async def get_qr(
     svc = ProductService(db)
     b64 = await svc.get_qr_image(product_id, current_user.company_id)
     return {"product_id": product_id, "qr_image": b64}
+
+
+@router.get(
+    "/qr-labels/pdf",
+    response_class=StreamingResponse,
+    summary="PDF com etiqueta QR Code de cada produto, pronto pra imprimir",
+)
+async def get_qr_labels_pdf(
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    svc = ProductService(db)
+    pdf_bytes = await svc.get_qr_labels_pdf(current_user.company_id)
+    return StreamingResponse(
+        io.BytesIO(pdf_bytes),
+        media_type="application/pdf",
+        headers={"Content-Disposition": 'attachment; filename="stockiq_etiquetas_qr.pdf"'},
+    )
 
 
 @router.get("/scan/{qr_payload}", response_model=ProductOut, summary="Busca produto pelo QR Code")
