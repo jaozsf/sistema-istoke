@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../shared/models/product_model.dart';
 import '../../shared/models/stock_model.dart';
 import '../../shared/models/movement_model.dart';
+import '../../shared/models/finance_summary.dart';
 import '../services/stock_api_service.dart';
 
 final _api = StockApiService();
@@ -34,6 +35,12 @@ final branchStockProvider = FutureProvider.family<List<StockModel>, String>(
 
 final movementsProvider = FutureProvider<List<MovementModel>>(
   (_) => _api.getMovements(),
+);
+
+// ── Financeiro ──────────────────────────────────────────────────────────────
+
+final financeSummaryProvider = FutureProvider.family<FinanceSummary, int>(
+  (ref, days) => _api.getFinanceSummary(days: days),
 );
 
 // ── IA ────────────────────────────────────────────────────────────────────────

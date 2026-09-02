@@ -246,6 +246,30 @@ Flutter                    Firebase              Backend
 | POST | `/api/v1/movements` | Registrar entrada/saída/transfer |
 | PUT | `/api/v1/branches/{b}/stock/{p}/adjust` | Ajuste direto (admin) |
 
+### Financeiro
+| Método | Rota | Descrição |
+|---|---|---|
+| GET | `/api/v1/finance/summary?days=1` | Receita, custo e lucro do período (default: hoje) |
+| GET | `/api/v1/finance?days=30` | Lançamentos financeiros recentes |
+
+Toda saída de estoque (`saida`) lança automaticamente uma receita (qtd ×
+preço de venda) e um custo/CMV (qtd × preço de custo) na tabela
+`finances`, com o preço vigente no momento da venda — não recalcula
+retroativamente se o preço do produto mudar depois. `transfer` não lança
+nada (não é venda, é troca de filial).
+
+Uma saída pode vir com `has_art` e/ou `has_border` marcados (as duas são
+independentes, podem sair juntas — ordem de produção sempre arte antes de
+borda). Cada uma soma uma sobretaxa de mão de obra fixa (ver
+`ART_SURCHARGE`/`BORDER_SURCHARGE` em `finance_service.py`). Produtos
+"ecológicos" não aceitam `has_border` (o material derrete no processo) —
+validado em `StockService`, retorna 422.
+
+Toda janela de tempo do financeiro ("hoje", "últimos N dias") usa o
+calendário de Brasília (`America/Sao_Paulo`), não UTC — ver
+`app/core/timezone.py`. O banco continua guardando `created_at` em UTC
+(boa prática), só a fronteira do "dia" é calculada em horário local.
+
 ### IA / Assistente
 | Método | Rota | Descrição |
 |---|---|---|
@@ -284,6 +308,8 @@ Flutter                    Firebase              Backend
 | Tela cinza sólida em alguma rota (sem crash no terminal) | Em build release, widget que lançou exceção no `build()` vira uma caixa cinza sem texto (por design do Flutter) — rode em modo debug pra ver o erro de verdade | `flutter run` local, reproduzir a mesma navegação |
 | Login dá erro de CORS no navegador | Origem do Flutter Web (porta do `flutter run`/servidor estático) não está em `ALLOWED_ORIGINS` no `.env` do backend | Adicione a origem (ex: `http://localhost:5173`) e reinicie o container (`docker compose up -d --force-recreate api` — `restart` sozinho não relê o `.env`) |
 | `TypeError: "0.00": type 'String' is not a subtype of type 'num'` | Preço vem como `Decimal`/string do backend, já corrigido no modelo Flutter (`ProductModel`) | Se acontecer de novo em outro campo numérico, mesma causa — adicionar conversor `fromJson` |
+| Botão "Registrar movimentação" sem produto pra escolher / sempre dá "Selecione produto e filial" | Tela foi aberta sem `productId` pré-selecionado e não tinha seletor | Já corrigido — a tela agora mostra um dropdown de produtos quando abre "do zero" (ex: botão `+` da tela Estoque) |
+| `error mounting ... not a directory` de novo, mesmo com o arquivo certo em `backend/` | Sobrou um diretório vazio com o mesmo nome do arquivo de credencial (Docker cria isso quando o volume é montado antes do arquivo existir) | Apague o diretório (`rmdir` ou `Remove-Item -Recurse`), rode `docker compose build --no-cache api` antes de subir de novo |
 
 ---
 
@@ -292,7 +318,7 @@ Flutter                    Firebase              Backend
 - [x] App Flutter conectado à API (web funcionando; mobile precisa de config Firebase própria via `flutterfire configure`)
 - [x] Respostas padrão no Assistente sem depender de IA paga
 - [x] Etiquetas QR em PDF pra imprimir
-- [ ] Financeiro: registrar receitas/custos automáticos por movimentação
-- [ ] Relatório PDF de estoque e financeiro completo (já existe endpoint `/analytics/report/pdf`, falta expor no app)
+- [x] Financeiro: receita/custo/lucro lançados automaticamente por movimentação de saída
+- [x] Relatório PDF executivo com um clique no dashboard (`/analytics/report/pdf`)
 - [ ] Notificações push (Firebase Cloud Messaging) — desativadas no web por falta de `firebase-messaging-sw.js`/VAPID key
 - [ ] Analytics IA: previsão de demanda (`/analytics/forecast` já existe no backend, falta tela no app)

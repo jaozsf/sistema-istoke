@@ -1,6 +1,6 @@
 import uuid
 from datetime import datetime, timezone
-from sqlalchemy import String, DateTime, Integer, Text, ForeignKey, Enum as SAEnum
+from sqlalchemy import String, DateTime, Integer, Text, Boolean, ForeignKey, Enum as SAEnum
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 from app.core.database import Base
 import enum
@@ -22,6 +22,11 @@ class Movement(Base):
     )
     quantity: Mapped[int] = mapped_column(Integer, nullable=False)
     notes: Mapped[str | None] = mapped_column(Text, nullable=True)
+    # Só fazem sentido em "saida" (a arte/borda só é feita depois de tirar
+    # o copo do estoque). Independentes: pode ter as duas juntas — nesse
+    # caso a ordem de produção é sempre arte primeiro, depois borda.
+    has_art:    Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    has_border: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
 
     # Referências
     product_id: Mapped[str] = mapped_column(

@@ -65,10 +65,10 @@ class StatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (bg, fg) = switch (type) {
-      StatusType.success => (AppTheme.success.withOpacity(.12), AppTheme.success),
-      StatusType.warning => (AppTheme.warning.withOpacity(.12), AppTheme.warning),
-      StatusType.danger  => (AppTheme.danger.withOpacity(.12),  AppTheme.danger),
-      StatusType.info    => (AppTheme.info.withOpacity(.12),    AppTheme.info),
+      StatusType.success => (AppTheme.success.withValues(alpha: .12), AppTheme.success),
+      StatusType.warning => (AppTheme.warning.withValues(alpha: .12), AppTheme.warning),
+      StatusType.danger  => (AppTheme.danger.withValues(alpha: .12),  AppTheme.danger),
+      StatusType.info    => (AppTheme.info.withValues(alpha: .12),    AppTheme.info),
     };
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 3),
@@ -117,7 +117,7 @@ class StockLevelBar extends StatelessWidget {
           child: LinearProgressIndicator(
             value: ratio,
             minHeight: 5,
-            backgroundColor: color.withOpacity(.12),
+            backgroundColor: color.withValues(alpha: .12),
             valueColor: AlwaysStoppedAnimation(color),
           ),
         ),

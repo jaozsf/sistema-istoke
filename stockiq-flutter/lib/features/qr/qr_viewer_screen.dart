@@ -49,7 +49,7 @@ class QRViewerScreen extends ConsumerWidget {
                         Container(
                           padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                           decoration: BoxDecoration(
-                            color: AppTheme.primary.withOpacity(.1),
+                            color: AppTheme.primary.withValues(alpha: .1),
                             borderRadius: BorderRadius.circular(8),
                           ),
                           child: Text(

@@ -68,7 +68,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
             Container(
               width: 32, height: 32,
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(.15),
+                color: AppTheme.primary.withValues(alpha: .15),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(Icons.auto_awesome, color: AppTheme.primary, size: 16),
@@ -133,7 +133,7 @@ class _EmptyAI extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Icon(Icons.auto_awesome, size: 56, color: AppTheme.primary.withOpacity(.4)),
+            Icon(Icons.auto_awesome, size: 56, color: AppTheme.primary.withValues(alpha: .4)),
             const SizedBox(height: 16),
             Text('Assistente StockIQ IA',
               style: Theme.of(context).textTheme.titleMedium,
@@ -170,8 +170,8 @@ class _SuggestionsPanel extends StatelessWidget {
         itemBuilder: (_, i) => ActionChip(
           label: Text(suggestions[i], style: const TextStyle(fontSize: 12)),
           onPressed: () => onTap(suggestions[i]),
-          backgroundColor: AppTheme.primary.withOpacity(.08),
-          side: BorderSide(color: AppTheme.primary.withOpacity(.2), width: 0.5),
+          backgroundColor: AppTheme.primary.withValues(alpha: .08),
+          side: BorderSide(color: AppTheme.primary.withValues(alpha: .2), width: 0.5),
           labelStyle: const TextStyle(color: AppTheme.primary),
         ),
       ),
@@ -198,7 +198,7 @@ class _MessageBubble extends StatelessWidget {
             Container(
               width: 28, height: 28,
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(.12),
+                color: AppTheme.primary.withValues(alpha: .12),
                 borderRadius: BorderRadius.circular(8),
               ),
               child: const Icon(Icons.auto_awesome, size: 14, color: AppTheme.primary),
@@ -243,7 +243,7 @@ class _MessageBubble extends StatelessWidget {
             Container(
               width: 28, height: 28,
               decoration: BoxDecoration(
-                color: AppTheme.primary.withOpacity(.12),
+                color: AppTheme.primary.withValues(alpha: .12),
                 borderRadius: BorderRadius.circular(14),
               ),
               child: const Icon(Icons.person, size: 14, color: AppTheme.primary),
@@ -339,7 +339,7 @@ class _InputBar extends StatelessWidget {
                       icon: const Icon(Icons.send_rounded),
                       color: AppTheme.primary,
                       style: IconButton.styleFrom(
-                        backgroundColor: AppTheme.primary.withOpacity(.12),
+                        backgroundColor: AppTheme.primary.withValues(alpha: .12),
                         minimumSize: const Size(44, 44),
                       ),
                       onPressed: onSend,

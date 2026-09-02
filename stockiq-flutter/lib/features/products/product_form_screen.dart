@@ -131,7 +131,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
             const SizedBox(height: 8),
             _section('Unidade'),
             DropdownButtonFormField<String>(
-              value: _unit,
+              initialValue: _unit,
               decoration: const InputDecoration(labelText: 'Unidade'),
               items: ['unid', 'kg', 'g', 'L', 'mL', 'cx', 'par', 'm']
                   .map((u) => DropdownMenuItem(value: u, child: Text(u)))

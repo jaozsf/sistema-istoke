@@ -2,6 +2,7 @@ import 'package:dio/dio.dart';
 import '../../shared/models/product_model.dart';
 import '../../shared/models/stock_model.dart';
 import '../../shared/models/movement_model.dart';
+import '../../shared/models/finance_summary.dart';
 import 'api_service.dart';
 
 class StockApiService {
@@ -125,6 +126,8 @@ class StockApiService {
     required String branchId,
     String? destBranchId,
     String? notes,
+    bool hasArt = false,
+    bool hasBorder = false,
   }) async {
     try {
       final resp = await _dio.post('/movements', data: {
@@ -134,8 +137,36 @@ class StockApiService {
         'branch_id': branchId,
         if (destBranchId != null) 'dest_branch_id': destBranchId,
         if (notes != null) 'notes': notes,
+        'has_art': hasArt,
+        'has_border': hasBorder,
       });
       return MovementModel.fromJson(resp.data);
+    } on DioException catch (e) {
+      throw parseApiError(e);
+    }
+  }
+
+  // ── Financeiro ────────────────────────────────────────────────────────────
+
+  Future<FinanceSummary> getFinanceSummary({int days = 1}) async {
+    try {
+      final resp = await _dio.get('/finance/summary', queryParameters: {'days': days});
+      return FinanceSummary.fromJson(resp.data);
+    } on DioException catch (e) {
+      throw parseApiError(e);
+    }
+  }
+
+  // ── Relatórios ────────────────────────────────────────────────────────────
+
+  /// Baixa PDF do relatório executivo completo (alertas, saúde de filial, previsão)
+  Future<List<int>> getExecutiveReportPdf() async {
+    try {
+      final resp = await _dio.get<List<int>>(
+        '/analytics/report/pdf',
+        options: Options(responseType: ResponseType.bytes),
+      );
+      return resp.data!;
     } on DioException catch (e) {
       throw parseApiError(e);
     }

@@ -54,7 +54,7 @@ class ProductDetailScreen extends ConsumerWidget {
                         Container(
                           width: 52, height: 52,
                           decoration: BoxDecoration(
-                            color: AppTheme.primary.withOpacity(.1),
+                            color: AppTheme.primary.withValues(alpha: .1),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: const Icon(Icons.inventory_2, color: AppTheme.primary, size: 26),

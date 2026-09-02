@@ -17,6 +17,7 @@ from app.controllers.product_controller import router as product_router
 from app.controllers.stock_controller   import router as stock_router
 from app.controllers.ai_controller      import router as ai_router
 from app.controllers.analytics_controller import router as analytics_router
+from app.controllers.finance_controller import router as finance_router
 
 # ─── Lifespan (startup / shutdown) ────────────────────────────────────────────
 
@@ -73,6 +74,7 @@ app.include_router(product_router, prefix=API)
 app.include_router(stock_router,   prefix=API)
 app.include_router(ai_router,      prefix=API)
 app.include_router(analytics_router, prefix=API)
+app.include_router(finance_router, prefix=API)
 # ─── Health check ─────────────────────────────────────────────────────────────
 
 @app.get("/health", tags=["Health"])

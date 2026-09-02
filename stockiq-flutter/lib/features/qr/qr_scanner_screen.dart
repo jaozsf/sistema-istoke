@@ -351,9 +351,9 @@ class _PriceBox extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: color.withOpacity(.08),
+        color: color.withValues(alpha: .08),
         borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: color.withOpacity(.2)),
+        border: Border.all(color: color.withValues(alpha: .2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,

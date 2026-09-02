@@ -4,34 +4,12 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/stock_providers.dart';
+import '../../core/services/pdf_download.dart';
+import '../../core/services/stock_api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/models/movement_model.dart';
-import '../../shared/models/product_model.dart';
+import '../../shared/models/user_model.dart';
 import '../../shared/widgets/app_widgets.dart';
-
-({double revenue, double profit}) _todayRevenueProfit(
-  List<MovementModel> movements,
-  List<ProductModel> products,
-) {
-  final priceById = {for (final p in products) p.id: p};
-  final now = DateTime.now();
-  double revenue = 0, profit = 0;
-  for (final m in movements) {
-    if (!m.isSaida) continue;
-    final created = DateTime.tryParse(m.createdAt);
-    if (created == null ||
-        created.year != now.year ||
-        created.month != now.month ||
-        created.day != now.day) {
-      continue;
-    }
-    final p = priceById[m.productId];
-    if (p == null) continue;
-    revenue += p.salePrice * m.quantity;
-    profit  += (p.salePrice - p.costPrice) * m.quantity;
-  }
-  return (revenue: revenue, profit: profit);
-}
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -41,14 +19,8 @@ class DashboardScreen extends ConsumerWidget {
     final user      = ref.watch(currentUserProvider);
     final lowStock  = ref.watch(lowStockProvider);
     final movements = ref.watch(movementsProvider);
-    final products  = ref.watch(productsProvider(null));
+    final finance   = ref.watch(financeSummaryProvider(1));
     final currency  = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
-
-    final loadingTotals = movements.isLoading || products.isLoading;
-    final totals = _todayRevenueProfit(
-      movements.valueOrNull ?? [],
-      products.valueOrNull ?? [],
-    );
 
     return Scaffold(
       appBar: AppBar(
@@ -64,9 +36,71 @@ class DashboardScreen extends ConsumerWidget {
           ],
         ),
         actions: [
+          if (user?.isManager ?? false)
+            IconButton(
+              icon: const Icon(Icons.picture_as_pdf_outlined),
+              tooltip: 'Baixar relatório executivo (PDF)',
+              onPressed: () async {
+                final messenger = ScaffoldMessenger.of(context);
+                try {
+                  final bytes = await StockApiService().getExecutiveReportPdf();
+                  downloadBytes(bytes, 'stockiq_relatorio_executivo.pdf');
+                } catch (e) {
+                  messenger.showSnackBar(
+                    SnackBar(content: Text('Erro ao baixar relatório: $e'), backgroundColor: AppTheme.danger),
+                  );
+                }
+              },
+            ),
           IconButton(
             icon: const Icon(Icons.notifications_outlined),
             onPressed: () => context.push('/notifications'),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.account_circle_outlined),
+            tooltip: 'Conta',
+            itemBuilder: (context) => [
+              PopupMenuItem<String>(
+                enabled: false,
+                child: Text(
+                  user?.email ?? '',
+                  style: Theme.of(context).textTheme.bodySmall,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ),
+              const PopupMenuDivider(),
+              const PopupMenuItem<String>(
+                value: 'logout',
+                child: Row(
+                  children: [
+                    Icon(Icons.logout, size: 18, color: AppTheme.danger),
+                    SizedBox(width: 10),
+                    Text('Sair', style: TextStyle(color: AppTheme.danger)),
+                  ],
+                ),
+              ),
+            ],
+            onSelected: (value) async {
+              if (value != 'logout') return;
+              final confirmed = await showDialog<bool>(
+                context: context,
+                builder: (ctx) => AlertDialog(
+                  title: const Text('Encerrar sessão?'),
+                  content: const Text('Você vai precisar fazer login de novo pra acessar o sistema.'),
+                  actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text('Cancelar')),
+                    TextButton(
+                      onPressed: () => Navigator.pop(ctx, true),
+                      child: const Text('Sair', style: TextStyle(color: AppTheme.danger)),
+                    ),
+                  ],
+                ),
+              );
+              if (confirmed == true) {
+                await ref.read(authStateProvider.notifier).signOut();
+                if (context.mounted) context.go('/login');
+              }
+            },
           ),
         ],
       ),
@@ -87,23 +121,27 @@ class DashboardScreen extends ConsumerWidget {
               mainAxisSpacing: 10,
               childAspectRatio: 1.6,
               children: [
-                loadingTotals
-                    ? const ShimmerCard(height: 80)
-                    : MetricCard(
-                        label: 'Receita hoje',
-                        value: currency.format(totals.revenue),
-                        delta: totals.revenue > 0 ? 'Hoje' : 'Nenhuma venda ainda',
-                        deltaPositive: true,
-                      ),
-                loadingTotals
-                    ? const ShimmerCard(height: 80)
-                    : MetricCard(
-                        label: 'Lucro líquido',
-                        value: currency.format(totals.profit),
-                        delta: totals.profit > 0 ? 'Hoje' : 'Nenhuma venda ainda',
-                        deltaPositive: true,
-                        valueColor: AppTheme.success,
-                      ),
+                finance.when(
+                  data: (f) => MetricCard(
+                    label: 'Receita hoje',
+                    value: currency.format(f.receita),
+                    delta: f.receita > 0 ? 'Hoje' : 'Nenhuma venda ainda',
+                    deltaPositive: true,
+                  ),
+                  loading: () => const ShimmerCard(height: 80),
+                  error: (_, __) => const MetricCard(label: 'Receita hoje', value: '--'),
+                ),
+                finance.when(
+                  data: (f) => MetricCard(
+                    label: 'Lucro líquido',
+                    value: currency.format(f.lucro),
+                    delta: f.lucro > 0 ? 'Hoje' : 'Nenhuma venda ainda',
+                    deltaPositive: true,
+                    valueColor: AppTheme.success,
+                  ),
+                  loading: () => const ShimmerCard(height: 80),
+                  error: (_, __) => const MetricCard(label: 'Lucro líquido', value: '--'),
+                ),
                 movements.when(
                   data: (items) => MetricCard(
                     label: 'Movimentações',
@@ -192,7 +230,7 @@ class _AlertTile extends StatelessWidget {
         leading: Container(
           width: 40, height: 40,
           decoration: BoxDecoration(
-            color: AppTheme.warning.withOpacity(.12),
+            color: AppTheme.warning.withValues(alpha: .12),
             borderRadius: BorderRadius.circular(8),
           ),
           child: const Icon(Icons.warning_amber_rounded, color: AppTheme.warning, size: 20),
@@ -209,16 +247,17 @@ class _AlertTile extends StatelessWidget {
   }
 }
 
-class _MovementTile extends StatelessWidget {
-  final dynamic movement;
+class _MovementTile extends ConsumerWidget {
+  final MovementModel movement;
   const _MovementTile({required this.movement});
 
   @override
-  Widget build(BuildContext context) {
-    final isEntrada = movement.type == 'entrada';
+  Widget build(BuildContext context, WidgetRef ref) {
+    final isEntrada = movement.isEntrada;
     final color = isEntrada ? AppTheme.success : AppTheme.danger;
     final icon  = isEntrada ? Icons.add_circle_outline : Icons.remove_circle_outline;
     final sign  = isEntrada ? '+' : '-';
+    final product = ref.watch(productDetailProvider(movement.productId));
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -226,10 +265,17 @@ class _MovementTile extends StatelessWidget {
         dense: true,
         leading: Icon(icon, color: color, size: 22),
         title: Text(
-          movement.type.toString().toUpperCase(),
+          movement.type.toUpperCase(),
           style: Theme.of(context).textTheme.bodyMedium?.copyWith(fontWeight: FontWeight.w500),
         ),
-        subtitle: Text(movement.productId, style: Theme.of(context).textTheme.bodySmall),
+        subtitle: Text(
+          product.when(
+            data: (p) => p.name,
+            loading: () => 'Carregando...',
+            error: (_, __) => movement.productId,
+          ),
+          style: Theme.of(context).textTheme.bodySmall,
+        ),
         trailing: Text(
           '$sign${movement.quantity}',
           style: TextStyle(fontSize: 15, fontWeight: FontWeight.w600, color: color),

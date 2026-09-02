@@ -10,6 +10,8 @@ class MovementModel with _$MovementModel {
     required String type,
     required int quantity,
     String? notes,
+    @JsonKey(name: 'has_art') @Default(false) bool hasArt,
+    @JsonKey(name: 'has_border') @Default(false) bool hasBorder,
     @JsonKey(name: 'product_id') required String productId,
     @JsonKey(name: 'branch_id') required String branchId,
     @JsonKey(name: 'user_id') String? userId,

@@ -9,6 +9,10 @@ from app.models.movement import Movement, MovementType
 from app.schemas.product_stock import MovementCreate, StockAdjust
 
 
+def _is_ecologico(product) -> bool:
+    return "ecolog" in product.name.lower() or product.sku.upper().startswith("EC-")
+
+
 class StockService:
     def __init__(self, db: AsyncSession):
         self.db = db
@@ -51,6 +55,17 @@ class StockService:
 
         mov_type = MovementType(data.type)
 
+        if mov_type != MovementType.saida and (data.has_art or data.has_border):
+            raise HTTPException(
+                status_code=400,
+                detail="Personalização só se aplica a movimentações de saída.",
+            )
+        if data.has_border and _is_ecologico(product):
+            raise HTTPException(
+                status_code=422,
+                detail="Copo ecológico não pode ter borda — o material derrete no processo.",
+            )
+
         if mov_type == MovementType.entrada:
             await self._entrada(data.product_id, data.branch_id, data.quantity, product.min_stock)
 
@@ -80,10 +95,22 @@ class StockService:
             dest_branch_id=data.dest_branch_id,
             user_id=user_id,
             notes=data.notes,
+            has_art=data.has_art if mov_type == MovementType.saida else False,
+            has_border=data.has_border if mov_type == MovementType.saida else False,
         )
         self.db.add(movement)
         await self.db.flush()
         await self.db.refresh(movement)
+
+        # "saida" (venda) lança receita + custo automaticamente. "transfer"
+        # também chama _saida internamente, mas não é venda — não lança nada.
+        if mov_type == MovementType.saida:
+            from app.services.finance_service import FinanceService
+            await FinanceService(self.db).record_sale(
+                product=product, quantity=data.quantity, branch_id=data.branch_id,
+                company_id=company_id, user_id=user_id, movement_id=movement.id,
+                has_art=data.has_art, has_border=data.has_border,
+            )
 
         await self.log_repo.record(
             action=f"stock.{data.type}", user_id=user_id, company_id=company_id,

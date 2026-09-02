@@ -6,6 +6,7 @@ import '../../core/providers/auth_provider.dart';
 import '../../core/providers/stock_providers.dart';
 import '../../core/services/stock_api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/models/product_model.dart';
 
 class MovementScreen extends ConsumerStatefulWidget {
   final String? productId;
@@ -29,11 +30,15 @@ class _MovementScreenState extends ConsumerState<MovementScreen> {
   final _notesCtrl  = TextEditingController();
   late String _type;
   bool _loading     = false;
+  String? _selectedProductId;
+  bool _hasArt    = false;
+  bool _hasBorder = false;
 
   @override
   void initState() {
     super.initState();
     _type = widget.initialType;
+    _selectedProductId = widget.productId;
   }
 
   @override
@@ -46,9 +51,13 @@ class _MovementScreenState extends ConsumerState<MovementScreen> {
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
     final branchId = widget.branchId ?? ref.read(currentUserProvider)?.branchId;
-    if (widget.productId == null || branchId == null) {
+    final productId = _selectedProductId;
+    if (productId == null || branchId == null) {
       ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Selecione produto e filial.'), backgroundColor: AppTheme.danger),
+        SnackBar(
+          content: Text(productId == null ? 'Selecione um produto.' : 'Filial não encontrada.'),
+          backgroundColor: AppTheme.danger,
+        ),
       );
       return;
     }
@@ -58,15 +67,17 @@ class _MovementScreenState extends ConsumerState<MovementScreen> {
       await StockApiService().registerMovement(
         type:      _type,
         quantity:  int.parse(_qtyCtrl.text),
-        productId: widget.productId!,
+        productId: productId,
         branchId:  branchId,
         notes:     _notesCtrl.text.isEmpty ? null : _notesCtrl.text,
+        hasArt:    _type == 'saida' && _hasArt,
+        hasBorder: _type == 'saida' && _hasBorder,
       );
 
       ref.invalidate(movementsProvider);
       ref.invalidate(lowStockProvider);
       ref.invalidate(branchStockProvider(branchId));
-      if (widget.productId != null) ref.invalidate(productDetailProvider(widget.productId!));
+      ref.invalidate(productDetailProvider(productId));
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -109,7 +120,7 @@ class _MovementScreenState extends ConsumerState<MovementScreen> {
                   icon: Icons.add_circle_outline,
                   color: AppTheme.success,
                   selected: _type == 'entrada',
-                  onTap: () => setState(() => _type = 'entrada'),
+                  onTap: () => setState(() { _type = 'entrada'; _hasArt = false; _hasBorder = false; }),
                 ),
                 const SizedBox(width: 10),
                 _TypeChip(
@@ -125,21 +136,133 @@ class _MovementScreenState extends ConsumerState<MovementScreen> {
                   icon: Icons.swap_horiz,
                   color: AppTheme.info,
                   selected: _type == 'transfer',
-                  onTap: () => setState(() => _type = 'transfer'),
+                  onTap: () => setState(() { _type = 'transfer'; _hasArt = false; _hasBorder = false; }),
                 ),
               ],
             ),
             const SizedBox(height: 24),
 
-            // Produto selecionado
-            if (widget.productId != null) ...[
-              _InfoRow(icon: Icons.inventory_2_outlined, label: 'Produto', value: widget.productId!),
-              const SizedBox(height: 12),
-            ],
-            if (widget.branchId != null) ...[
-              _InfoRow(icon: Icons.store_outlined, label: 'Filial', value: widget.branchId!),
-              const SizedBox(height: 24),
-            ],
+            // Produto
+            if (widget.productId != null)
+              Consumer(
+                builder: (context, ref, _) {
+                  final product = ref.watch(productDetailProvider(widget.productId!));
+                  return _InfoRow(
+                    icon: Icons.inventory_2_outlined,
+                    label: 'Produto',
+                    value: product.when(
+                      data: (p) => p.name,
+                      loading: () => 'Carregando...',
+                      error: (_, __) => widget.productId!,
+                    ),
+                  );
+                },
+              )
+            else
+              Consumer(
+                builder: (context, ref, _) {
+                  final products = ref.watch(productsProvider(null));
+                  return products.when(
+                    data: (items) => DropdownButtonFormField<String>(
+                      initialValue: _selectedProductId,
+                      isExpanded: true,
+                      decoration: const InputDecoration(
+                        labelText: 'Produto *',
+                        prefixIcon: Icon(Icons.inventory_2_outlined, size: 20),
+                      ),
+                      items: items
+                          .map((ProductModel p) => DropdownMenuItem(
+                                value: p.id,
+                                child: Text('${p.name} (${p.sku})', overflow: TextOverflow.ellipsis),
+                              ))
+                          .toList(),
+                      onChanged: (v) => setState(() => _selectedProductId = v),
+                      validator: (v) => v == null ? 'Selecione um produto.' : null,
+                    ),
+                    loading: () => const LinearProgressIndicator(),
+                    error: (_, __) => const Text('Erro ao carregar produtos.'),
+                  );
+                },
+              ),
+            const SizedBox(height: 24),
+
+            // Personalização (só faz sentido depois de tirar do estoque)
+            if (_type == 'saida' && _selectedProductId != null)
+              Consumer(
+                builder: (context, ref, _) {
+                  final product = ref.watch(productDetailProvider(_selectedProductId!));
+                  return product.when(
+                    data: (p) {
+                      final isEcologico = p.sku.toUpperCase().startsWith('EC-') ||
+                          p.name.toLowerCase().contains('ecolog');
+                      if (_hasBorder && isEcologico) {
+                        WidgetsBinding.instance.addPostFrameCallback(
+                          (_) => setState(() => _hasBorder = false),
+                        );
+                      }
+                      return Padding(
+                        padding: const EdgeInsets.only(bottom: 20),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text('Personalização (pode marcar as duas)', style: theme.textTheme.bodySmall),
+                            const SizedBox(height: 8),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: [
+                                FilterChip(
+                                  label: const Text('Personalizado / arte (+R\$2,00)'),
+                                  selected: _hasArt,
+                                  onSelected: (v) => setState(() => _hasArt = v),
+                                ),
+                                FilterChip(
+                                  label: const Text('Com borda (+R\$1,00)'),
+                                  selected: _hasBorder,
+                                  onSelected: isEcologico
+                                      ? null
+                                      : (v) => setState(() => _hasBorder = v),
+                                ),
+                              ],
+                            ),
+                            if (_hasArt && _hasBorder) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                'Ordem de produção: arte primeiro, depois borda.',
+                                style: theme.textTheme.bodySmall?.copyWith(color: AppTheme.info),
+                              ),
+                            ],
+                            if (isEcologico) ...[
+                              const SizedBox(height: 6),
+                              Text(
+                                'Copo ecológico não pode ter borda — derrete no processo.',
+                                style: theme.textTheme.bodySmall?.copyWith(color: AppTheme.warning),
+                              ),
+                            ],
+                          ],
+                        ),
+                      );
+                    },
+                    loading: () => const SizedBox(),
+                    error: (_, __) => const SizedBox(),
+                  );
+                },
+              ),
+
+            // Atalho de caixa fechada (50 und)
+            Text('Caixa fechada (50 und)', style: theme.textTheme.bodySmall),
+            const SizedBox(height: 8),
+            Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [1, 2, 3, 5, 10].map((n) {
+                return ActionChip(
+                  label: Text('$n cx (${n * 50})'),
+                  onPressed: () => setState(() => _qtyCtrl.text = (n * 50).toString()),
+                );
+              }).toList(),
+            ),
+            const SizedBox(height: 20),
 
             // Quantidade
             TextFormField(
@@ -148,6 +271,7 @@ class _MovementScreenState extends ConsumerState<MovementScreen> {
               inputFormatters: [FilteringTextInputFormatter.digitsOnly],
               decoration: const InputDecoration(
                 labelText: 'Quantidade *',
+                hintText: 'Ou digite a quantidade exata (caixa aberta)',
                 prefixIcon: Icon(Icons.numbers, size: 20),
               ),
               style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
@@ -184,9 +308,9 @@ class _MovementScreenState extends ConsumerState<MovementScreen> {
                     padding: const EdgeInsets.all(16),
                     margin: const EdgeInsets.only(bottom: 20),
                     decoration: BoxDecoration(
-                      color: color.withOpacity(.08),
+                      color: color.withValues(alpha: .08),
                       borderRadius: BorderRadius.circular(12),
-                      border: Border.all(color: color.withOpacity(.3)),
+                      border: Border.all(color: color.withValues(alpha: .3)),
                     ),
                     child: Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -250,7 +374,7 @@ class _TypeChip extends StatelessWidget {
           duration: const Duration(milliseconds: 180),
           padding: const EdgeInsets.symmetric(vertical: 12),
           decoration: BoxDecoration(
-            color: selected ? color.withOpacity(.12) : Colors.transparent,
+            color: selected ? color.withValues(alpha: .12) : Colors.transparent,
             borderRadius: BorderRadius.circular(10),
             border: Border.all(
               color: selected ? color : Theme.of(context).colorScheme.outline,

@@ -89,9 +89,9 @@ class _StockTab extends ConsumerWidget {
                 margin: const EdgeInsets.all(16),
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
-                  color: AppTheme.warning.withOpacity(.1),
+                  color: AppTheme.warning.withValues(alpha: .1),
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppTheme.warning.withOpacity(.3), width: 0.5),
+                  border: Border.all(color: AppTheme.warning.withValues(alpha: .3), width: 0.5),
                 ),
                 child: Row(
                   children: [

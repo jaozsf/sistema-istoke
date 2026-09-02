@@ -13,8 +13,10 @@ Gera um PDF profissional com:
 """
 from __future__ import annotations
 import io
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
+
+from app.core.timezone import now_br, BR_TZ
 
 from reportlab.lib.pagesizes import A4
 from reportlab.lib import colors
@@ -47,9 +49,9 @@ C_WHITE    = colors.white
 def _styles() -> dict:
     base = getSampleStyleSheet()
     return {
-        "title":    ParagraphStyle("title",    fontName="Helvetica-Bold",   fontSize=22, textColor=C_PRIMARY,  spaceAfter=4,  alignment=TA_CENTER),
+        "title":    ParagraphStyle("title",    fontName="Helvetica-Bold",   fontSize=22, leading=28, textColor=C_PRIMARY,  spaceAfter=8,  alignment=TA_CENTER),
         "subtitle": ParagraphStyle("subtitle", fontName="Helvetica",        fontSize=12, textColor=C_MUTED,    spaceAfter=2,  alignment=TA_CENTER),
-        "h1":       ParagraphStyle("h1",       fontName="Helvetica-Bold",   fontSize=14, textColor=C_PRIMARY,  spaceAfter=6,  spaceBefore=14),
+        "h1":       ParagraphStyle("h1",       fontName="Helvetica-Bold",   fontSize=14, leading=18, textColor=C_PRIMARY,  spaceAfter=6,  spaceBefore=14),
         "h2":       ParagraphStyle("h2",       fontName="Helvetica-Bold",   fontSize=11, textColor=C_TEXT,     spaceAfter=4,  spaceBefore=8),
         "body":     ParagraphStyle("body",     fontName="Helvetica",        fontSize=9,  textColor=C_TEXT,     spaceAfter=3,  leading=13),
         "small":    ParagraphStyle("small",    fontName="Helvetica",        fontSize=8,  textColor=C_MUTED,    spaceAfter=2),
@@ -102,10 +104,10 @@ def _build_cover(s, company_name: str, generated_at: datetime) -> list:
         Spacer(1, 0.5 * cm),
         HRFlowable(width="100%", thickness=1, color=C_PRIMARY),
         Spacer(1, 0.5 * cm),
-        Paragraph(company_name, ParagraphStyle("co", fontName="Helvetica-Bold", fontSize=16, textColor=C_TEXT, alignment=TA_CENTER)),
+        Paragraph(company_name, ParagraphStyle("co", fontName="Helvetica-Bold", fontSize=16, leading=20, textColor=C_TEXT, alignment=TA_CENTER)),
         Spacer(1, 0.3 * cm),
         Paragraph(
-            f"Gerado em {generated_at.strftime('%d/%m/%Y às %H:%M')} UTC",
+            f"Gerado em {generated_at.astimezone(BR_TZ).strftime('%d/%m/%Y às %H:%M')} (Brasília)",
             s["subtitle"],
         ),
         Spacer(1, 5 * cm),
@@ -348,7 +350,7 @@ def _footer(canvas, doc):
     canvas.setFillColor(C_MUTED)
     w, _ = A4
     canvas.drawCentredString(w / 2, 1.2*cm, f"StockIQ — Relatório Executivo  •  Página {doc.page}")
-    canvas.drawString(1.5*cm, 1.2*cm, datetime.now(timezone.utc).strftime("%d/%m/%Y %H:%M UTC"))
+    canvas.drawString(1.5*cm, 1.2*cm, now_br().strftime("%d/%m/%Y %H:%M (Brasília)"))
     canvas.drawRightString(w - 1.5*cm, 1.2*cm, "Confidencial")
     canvas.restoreState()
 

@@ -152,7 +152,7 @@ class _ProductCard extends StatelessWidget {
               Container(
                 width: 44, height: 44,
                 decoration: BoxDecoration(
-                  color: AppTheme.primary.withOpacity(.1),
+                  color: AppTheme.primary.withValues(alpha: .1),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: const Icon(Icons.inventory_2_outlined, color: AppTheme.primary, size: 22),

@@ -12,6 +12,24 @@ import 'firebase_options.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Por padrao, build release troca erro de widget por uma caixa cinza sem
+  // texto (por design do Flutter) -- foi exatamente isso que escondeu bugs
+  // reais (locale, import quebrado) até a hora de testar. Sempre mostra a
+  // mensagem, em qualquer modo.
+  ErrorWidget.builder = (FlutterErrorDetails details) => Material(
+        color: const Color(0xFFFDECEC),
+        child: Padding(
+          padding: const EdgeInsets.all(16),
+          child: Center(
+            child: Text(
+              'Erro nessa tela:\n${details.exceptionAsString()}',
+              style: const TextStyle(color: Color(0xFFB3261E), fontSize: 12),
+              textAlign: TextAlign.center,
+            ),
+          ),
+        ),
+      );
+
   // Orientação: portrait only
   await SystemChrome.setPreferredOrientations([
     DeviceOrientation.portraitUp,

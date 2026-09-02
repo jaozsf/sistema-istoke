@@ -76,6 +76,10 @@ class MovementCreate(BaseModel):
     branch_id: str
     dest_branch_id: Optional[str] = None   # apenas para "transfer"
     notes: Optional[str] = None
+    # Só aplicáveis em "saida". Podem vir as duas juntas (ordem de produção:
+    # arte primeiro, depois borda) — não são mutuamente exclusivas.
+    has_art: bool = False
+    has_border: bool = False
 
 
 class MovementOut(BaseModel):
@@ -83,6 +87,8 @@ class MovementOut(BaseModel):
     type: str
     quantity: int
     notes: Optional[str]
+    has_art: bool
+    has_border: bool
     product_id: str
     branch_id: str
     user_id: Optional[str]
