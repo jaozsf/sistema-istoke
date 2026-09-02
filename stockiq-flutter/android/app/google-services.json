@@ -14,6 +14,14 @@
       },
       "oauth_client": [
         {
+          "client_id": "840917493129-gpqh1lrojd3pbf2p86lo4e9jv6n8d6u1.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.stockiq.stockiq",
+            "certificate_hash": "357a09917cb8f6d34aff4f9ba0139adebabbd1e3"
+          }
+        },
+        {
           "client_id": "840917493129-ns7d9coenub25ulf3q25rerd8uk53beh.apps.googleusercontent.com",
           "client_type": 3
         }
