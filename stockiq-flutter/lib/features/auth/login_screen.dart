@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/app_widgets.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -90,15 +91,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   // Logo
                   Row(
                     children: [
-                      Container(
-                        width: 44, height: 44,
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary,
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        child: const Icon(Icons.warehouse, color: Colors.white, size: 24),
-                      ),
-                      const SizedBox(width: 10),
+                      const AppLogo(size: 48),
+                      const SizedBox(width: 12),
                       Text('StockIQ', style: theme.textTheme.headlineMedium?.copyWith(fontSize: 26)),
                     ],
                   ),

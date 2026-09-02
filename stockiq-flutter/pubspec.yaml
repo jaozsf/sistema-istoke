@@ -58,6 +58,19 @@ dev_dependencies:
   freezed: ^2.5.2
   json_serializable: ^6.8.0
   riverpod_generator: ^2.4.0
+  flutter_launcher_icons: ^0.13.1
+
+flutter_launcher_icons:
+  android: true
+  ios: true
+  image_path: "assets/icon/app_icon.png"
+  adaptive_icon_background: "#534AB7"
+  adaptive_icon_foreground: "assets/icon/app_icon_fg.png"
+  web:
+    generate: true
+    image_path: "assets/icon/app_icon.png"
+    background_color: "#534AB7"
+    theme_color: "#534AB7"
 
 flutter:
   uses-material-design: true

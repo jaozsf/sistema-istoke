@@ -2,6 +2,99 @@ import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../core/theme/app_theme.dart';
 
+// ── Logo do app ───────────────────────────────────────────────────────────────
+
+/// Pictograma próprio: silhueta de caixa (o produto físico) com as barras
+/// de estoque/lucro dentro dela (o dado que o sistema mostra). Fundo
+/// chapado, sem gradiente/brilho/badge colado.
+///
+/// [background] e [foreground] controlam a cor — por padrão roxo com
+/// traço branco. Use [AppLogo.mono] pra versão preta ou branca sem fundo
+/// (favicon, impressão, superfícies escuras/claras).
+class AppLogo extends StatelessWidget {
+  final double size;
+  final Color background;
+  final Color foreground;
+
+  const AppLogo({
+    super.key,
+    this.size = 48,
+    this.background = AppTheme.primary,
+    this.foreground = Colors.white,
+  });
+
+  /// Versão monocromática, sem fundo preenchido — só o traço na cor pedida.
+  /// Ex: `AppLogo.mono(color: Colors.black)` ou `AppLogo.mono(color: Colors.white)`.
+  const AppLogo.mono({super.key, this.size = 48, Color color = Colors.black})
+      : background = Colors.transparent,
+        foreground = color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: size,
+      height: size,
+      decoration: BoxDecoration(
+        color: background,
+        borderRadius: BorderRadius.circular(size * 0.24),
+      ),
+      child: CustomPaint(
+        size: Size(size, size),
+        painter: _BoxWithBarsPainter(color: foreground),
+      ),
+    );
+  }
+}
+
+class _BoxWithBarsPainter extends CustomPainter {
+  final Color color;
+  _BoxWithBarsPainter({required this.color});
+
+  @override
+  void paint(Canvas canvas, Size s) {
+    final w = s.width, h = s.height;
+
+    // Caixote simples: retângulo arredondado + uma linha de "fita" no
+    // topo. Sem bico de tampa (renderiza mal em ícone pequeno).
+    final left = w * 0.18, right = w * 0.82;
+    final top = h * 0.22, bottom = h * 0.80;
+    final tapeY = top + (bottom - top) * 0.30;
+    final boxRect = RRect.fromRectAndRadius(
+      Rect.fromLTRB(left, top, right, bottom),
+      Radius.circular(w * 0.05),
+    );
+
+    final strokePaint = Paint()
+      ..color = color
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = w * 0.052
+      ..strokeCap = StrokeCap.round;
+
+    canvas.drawRRect(boxRect, strokePaint);
+    canvas.drawLine(Offset(left, tapeY), Offset(right, tapeY), strokePaint);
+
+    // Barras de estoque/lucro dentro da caixa, abaixo da fita.
+    final barPaint = Paint()..style = PaintingStyle.fill;
+    final innerLeft = left + w * 0.08, innerRight = right - w * 0.08;
+    final barWidth = (innerRight - innerLeft - w * 0.06) / 3;
+    final baseline = bottom - h * 0.07;
+    final heights = [h * 0.10, h * 0.16, h * 0.22];
+    var x = innerLeft;
+    for (var i = 0; i < 3; i++) {
+      barPaint.color = color.withValues(alpha: i == 2 ? 1 : 0.55);
+      final rect = RRect.fromRectAndRadius(
+        Rect.fromLTWH(x, baseline - heights[i], barWidth, heights[i]),
+        Radius.circular(barWidth * 0.35),
+      );
+      canvas.drawRRect(rect, barPaint);
+      x += barWidth + w * 0.03;
+    }
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
 // ── Metric Card ───────────────────────────────────────────────────────────────
 
 class MetricCard extends StatelessWidget {

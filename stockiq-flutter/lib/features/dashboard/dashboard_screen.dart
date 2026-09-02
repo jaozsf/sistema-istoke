@@ -4,12 +4,32 @@ import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/stock_providers.dart';
+import '../../core/providers/theme_provider.dart';
 import '../../core/services/pdf_download.dart';
 import '../../core/services/stock_api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/models/movement_model.dart';
 import '../../shared/models/user_model.dart';
 import '../../shared/widgets/app_widgets.dart';
+
+PopupMenuItem<String> _themeMenuItem(
+  BuildContext context, String value, IconData icon, String label, bool selected,
+) {
+  return PopupMenuItem<String>(
+    value: value,
+    child: Row(
+      children: [
+        Icon(icon, size: 18, color: selected ? AppTheme.primary : null),
+        const SizedBox(width: 10),
+        Text(label, style: selected ? const TextStyle(color: AppTheme.primary, fontWeight: FontWeight.w600) : null),
+        if (selected) ...[
+          const Spacer(),
+          const Icon(Icons.check, size: 16, color: AppTheme.primary),
+        ],
+      ],
+    ),
+  );
+}
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -20,6 +40,7 @@ class DashboardScreen extends ConsumerWidget {
     final lowStock  = ref.watch(lowStockProvider);
     final movements = ref.watch(movementsProvider);
     final finance   = ref.watch(financeSummaryProvider(1));
+    final themeMode = ref.watch(themeModeProvider);
     final currency  = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
     return Scaffold(
@@ -69,6 +90,10 @@ class DashboardScreen extends ConsumerWidget {
                 ),
               ),
               const PopupMenuDivider(),
+              _themeMenuItem(context, 'theme_light', Icons.light_mode_outlined, 'Claro', themeMode == ThemeMode.light),
+              _themeMenuItem(context, 'theme_dark', Icons.dark_mode_outlined, 'Escuro', themeMode == ThemeMode.dark),
+              _themeMenuItem(context, 'theme_system', Icons.brightness_auto_outlined, 'Sistema', themeMode == ThemeMode.system),
+              const PopupMenuDivider(),
               const PopupMenuItem<String>(
                 value: 'logout',
                 child: Row(
@@ -81,6 +106,17 @@ class DashboardScreen extends ConsumerWidget {
               ),
             ],
             onSelected: (value) async {
+              switch (value) {
+                case 'theme_light':
+                  ref.read(themeModeProvider.notifier).setMode(ThemeMode.light);
+                  return;
+                case 'theme_dark':
+                  ref.read(themeModeProvider.notifier).setMode(ThemeMode.dark);
+                  return;
+                case 'theme_system':
+                  ref.read(themeModeProvider.notifier).setMode(ThemeMode.system);
+                  return;
+              }
               if (value != 'logout') return;
               final confirmed = await showDialog<bool>(
                 context: context,

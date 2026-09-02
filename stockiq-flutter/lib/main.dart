@@ -4,6 +4,7 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'core/providers/theme_provider.dart';
 import 'core/router.dart';
 import 'core/theme/app_theme.dart';
 import 'core/services/notification_service.dart';
@@ -46,8 +47,10 @@ void main() async {
   // lanca LocaleDataException e o widget quebra em silencio (tela cinza)
   await initializeDateFormatting('pt_BR', null);
 
-  // Firebase
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.web);
+  // Firebase — web precisa das options explícitas (sem arquivo nativo pra
+  // ler). Android/iOS lêem sozinhos de google-services.json/
+  // GoogleService-Info.plist, não passa nada aqui.
+  await Firebase.initializeApp(options: kIsWeb ? DefaultFirebaseOptions.web : null);
 
   // Notificações push (web: precisa de firebase-messaging-sw.js + VAPID key
   // que nao existem nesse projeto ainda -- getToken() trava esperando o
@@ -74,13 +77,14 @@ class StockIQApp extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final router = ref.watch(routerProvider);
+    final themeMode = ref.watch(themeModeProvider);
 
     return MaterialApp.router(
       title: 'StockIQ',
       debugShowCheckedModeBanner: false,
       theme:      AppTheme.light,
       darkTheme:  AppTheme.dark,
-      themeMode:  ThemeMode.system,
+      themeMode:  themeMode,
       routerConfig: router,
       builder: (context, child) {
         // Aplica escala de texto fixa (evita quebras de layout)

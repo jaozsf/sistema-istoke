@@ -1,0 +1,39 @@
+{
+  "project_info": {
+    "project_number": "840917493129",
+    "project_id": "istoke-b9ba9",
+    "storage_bucket": "istoke-b9ba9.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:840917493129:android:2feb146a3c3bd33a3f2d58",
+        "android_client_info": {
+          "package_name": "com.stockiq.stockiq"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "840917493129-ns7d9coenub25ulf3q25rerd8uk53beh.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA9oNSloUc8f9zGqTD2TK4N8nFjP2rle_o"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "840917493129-ns7d9coenub25ulf3q25rerd8uk53beh.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
