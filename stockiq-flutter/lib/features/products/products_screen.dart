@@ -45,7 +45,7 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
               final messenger = ScaffoldMessenger.of(context);
               try {
                 final bytes = await StockApiService().getQrLabelsPdf();
-                downloadBytes(bytes, 'stockiq_etiquetas_qr.pdf');
+                await downloadBytes(bytes, 'stockiq_etiquetas_qr.pdf');
               } catch (e) {
                 messenger.showSnackBar(
                   SnackBar(content: Text('Erro ao baixar etiquetas: $e'), backgroundColor: AppTheme.danger),

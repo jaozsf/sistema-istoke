@@ -86,7 +86,7 @@ class DashboardScreen extends ConsumerWidget {
                 final messenger = ScaffoldMessenger.of(context);
                 try {
                   final bytes = await StockApiService().getExecutiveReportPdf();
-                  downloadBytes(bytes, 'stockiq_relatorio_executivo.pdf');
+                  await downloadBytes(bytes, 'stockiq_relatorio_executivo.pdf');
                 } catch (e) {
                   messenger.showSnackBar(
                     SnackBar(content: Text('Erro ao baixar relatório: $e'), backgroundColor: AppTheme.danger),

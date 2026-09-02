@@ -86,6 +86,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+
+    // Enquanto verifica se já tem sessão salva (secure storage), mostra
+    // esqueleto em vez do form em branco -- evita o flash "login vazio
+    // -> dashboard" pra quem já tava logado.
+    final checkingSession = ref.watch(authStateProvider).isLoading;
+    if (checkingSession) {
+      return const _LoginSkeleton();
+    }
+
     return Scaffold(
       body: SafeArea(
         child: Center(
@@ -241,6 +250,50 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             child: const Text('Enviar'),
           ),
         ],
+      ),
+    );
+  }
+}
+
+/// Mesmo layout do form de login, só que com blocos cinza pulsando no
+/// lugar de cada campo -- mostrado só durante a checagem inicial de
+/// sessão salva (rápido, mas evita o form aparecer vazio por um instante).
+class _LoginSkeleton extends StatelessWidget {
+  const _LoginSkeleton();
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      body: SafeArea(
+        child: Center(
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    const AppLogo(size: 48),
+                    const SizedBox(width: 12),
+                    Text('StockIQ', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontSize: 26)),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                const ShimmerCard(height: 12),
+                const SizedBox(height: 40),
+                const ShimmerCard(height: 20),
+                const SizedBox(height: 24),
+                const ShimmerCard(height: 56),
+                const SizedBox(height: 14),
+                const ShimmerCard(height: 56),
+                const SizedBox(height: 28),
+                const ShimmerCard(height: 48),
+                const SizedBox(height: 20),
+                const ShimmerCard(height: 48),
+              ],
+            ),
+          ),
+        ),
       ),
     );
   }
