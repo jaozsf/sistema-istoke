@@ -48,6 +48,13 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     });
   }
 
+  /// Atualiza o usuário em memória + cache local sem precisar logar de
+  /// novo (ex: depois de confirmar o nome no primeiro acesso).
+  Future<void> updateUser(UserModel user) async {
+    await _service.updateCachedUser(user);
+    state = AsyncData(AuthState(user: user));
+  }
+
   Future<void> signOut() async {
     state = const AsyncLoading();
     await _service.signOut();

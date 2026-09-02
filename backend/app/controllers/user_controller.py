@@ -4,13 +4,33 @@ from typing import List
 from app.core.database import get_db
 from app.core.security import get_current_user, require_admin, require_manager
 from app.services.user_service import UserService
+from pydantic import BaseModel, Field
 from app.schemas.user import UserCreate, UserUpdate, UserOut
 
 router = APIRouter(prefix="/users", tags=["Usuários"])
 
 
+class UpdateMyName(BaseModel):
+    full_name: str = Field(min_length=1, max_length=255)
+
+
 @router.get("/me", response_model=UserOut, summary="Dados do usuário logado")
 async def me(current_user=Depends(get_current_user)):
+    return current_user
+
+
+@router.patch("/me", response_model=UserOut, summary="Atualiza o próprio nome")
+async def update_my_name(
+    data: UpdateMyName,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    # Auto-servido: qualquer usuário logado pode atualizar só o PRÓPRIO
+    # nome (nunca role/empresa/filial) -- pedido no primeiro login pra
+    # quem entra por email/senha (sem nome no token, ao contrário do Google).
+    current_user.full_name = data.full_name
+    await db.flush()
+    await db.refresh(current_user)
     return current_user
 
 

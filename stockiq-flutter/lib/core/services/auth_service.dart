@@ -79,6 +79,12 @@ class AuthService {
     await _storage.delete(key: AppConstants.userKey);
   }
 
+  /// Atualiza só o cache local (não mexe no token) -- usado depois de um
+  /// PATCH que muda dado do usuário, tipo o nome.
+  Future<void> updateCachedUser(UserModel user) async {
+    await _storage.write(key: AppConstants.userKey, value: userModelToJson(user));
+  }
+
   // ── Estado ───────────────────────────────────────────────────────────────────
 
   Future<bool> get isLoggedIn async {

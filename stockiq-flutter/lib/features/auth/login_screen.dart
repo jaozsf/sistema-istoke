@@ -1,8 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/services/app_notifications.dart';
+import '../../core/services/stock_api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/app_widgets.dart';
 
@@ -49,11 +51,61 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 
-  void _goToDashboard() {
+  Future<void> _goToDashboard() async {
     // Fogo-e-esquece: não trava o login se o usuário negar/ignorar o
     // pedido de permissão de notificação.
     AppNotifications.requestPermission();
+    await _maybeAskName();
+    if (!mounted) return;
     context.go('/dashboard');
+  }
+
+  /// Pede confirmação/preenchimento do nome uma vez por conta neste
+  /// aparelho -- essencial pra quem entra por email/senha (sem nome
+  /// nenhum vindo do Firebase, ao contrário do Google).
+  Future<void> _maybeAskName() async {
+    final user = ref.read(currentUserProvider);
+    if (user == null) return;
+
+    final prefs = await SharedPreferences.getInstance();
+    final flagKey = 'name_confirmed_${user.id}';
+    if (prefs.getBool(flagKey) == true) return;
+
+    if (!mounted) return;
+    final nameCtrl = TextEditingController(text: user.fullName);
+    final confirmed = await showDialog<bool>(
+      context: context,
+      barrierDismissible: false,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Como podemos te chamar?'),
+        content: TextField(
+          controller: nameCtrl,
+          autofocus: true,
+          textCapitalization: TextCapitalization.words,
+          decoration: const InputDecoration(labelText: 'Nome completo'),
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Agora não'),
+          ),
+          FilledButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Salvar'),
+          ),
+        ],
+      ),
+    );
+
+    if (confirmed == true && nameCtrl.text.trim().isNotEmpty) {
+      try {
+        final updated = await StockApiService().updateMyName(nameCtrl.text.trim());
+        await ref.read(authStateProvider.notifier).updateUser(updated);
+      } catch (_) {
+        // Silencioso: não trava o fluxo de login por causa disso.
+      }
+    }
+    await prefs.setBool(flagKey, true);
   }
 
   Future<void> _loginWithGoogle() async {

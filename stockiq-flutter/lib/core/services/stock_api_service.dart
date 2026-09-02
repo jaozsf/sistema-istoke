@@ -21,6 +21,16 @@ class StockApiService {
     }
   }
 
+  /// Atualiza o próprio nome (qualquer usuário logado).
+  Future<UserModel> updateMyName(String fullName) async {
+    try {
+      final resp = await _dio.patch('/users/me', data: {'full_name': fullName});
+      return UserModel.fromJson(resp.data);
+    } on DioException catch (e) {
+      throw parseApiError(e);
+    }
+  }
+
   /// Cadastra uma pessoa nova por email (role mínimo: admin). Ela ainda não
   /// tem firebase_uid — vincula sozinho no primeiro login dela.
   Future<UserModel> createUser({
