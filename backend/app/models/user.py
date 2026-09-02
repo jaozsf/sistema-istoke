@@ -16,7 +16,10 @@ class User(Base):
     __tablename__ = "users"
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
-    firebase_uid: Mapped[str] = mapped_column(String(128), unique=True, nullable=False, index=True)
+    # Nulo até o convidado logar pela primeira vez (admin cadastra por
+    # email antes de saber o UID do Firebase). No login, se o email bater
+    # com um usuário sem firebase_uid, ele é vinculado nessa hora.
+    firebase_uid: Mapped[str | None] = mapped_column(String(128), unique=True, nullable=True, index=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False, index=True)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     role: Mapped[str] = mapped_column(

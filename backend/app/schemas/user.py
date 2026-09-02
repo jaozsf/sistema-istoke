@@ -5,7 +5,9 @@ from app.models.user import UserRole
 
 
 class UserCreate(BaseModel):
-    firebase_uid: str
+    # Nulo: admin cadastra por email antes do convidado logar. O vínculo
+    # com o UID real do Firebase acontece sozinho no primeiro login dele.
+    firebase_uid: Optional[str] = None
     email: EmailStr
     full_name: str
     role: UserRole = UserRole.operator
@@ -22,7 +24,7 @@ class UserUpdate(BaseModel):
 
 class UserOut(BaseModel):
     id: str
-    firebase_uid: str
+    firebase_uid: Optional[str]
     email: str
     full_name: str
     role: UserRole

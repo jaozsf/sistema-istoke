@@ -3,10 +3,55 @@ import '../../shared/models/product_model.dart';
 import '../../shared/models/stock_model.dart';
 import '../../shared/models/movement_model.dart';
 import '../../shared/models/finance_summary.dart';
+import '../../shared/models/user_model.dart';
 import 'api_service.dart';
 
 class StockApiService {
   final Dio _dio = ApiService.instance.client;
+
+  // ── Usuários (equipe) ────────────────────────────────────────────────────
+
+  /// Lista os usuários da empresa (role mínimo: manager).
+  Future<List<UserModel>> getUsers() async {
+    try {
+      final resp = await _dio.get('/users');
+      return (resp.data as List).map((e) => UserModel.fromJson(e)).toList();
+    } on DioException catch (e) {
+      throw parseApiError(e);
+    }
+  }
+
+  /// Cadastra uma pessoa nova por email (role mínimo: admin). Ela ainda não
+  /// tem firebase_uid — vincula sozinho no primeiro login dela.
+  Future<UserModel> createUser({
+    required String email,
+    required String fullName,
+    required String role,
+  }) async {
+    try {
+      final resp = await _dio.post('/users', data: {
+        'email': email,
+        'full_name': fullName,
+        'role': role,
+        // company_id/branch_id são ignorados pelo backend — sempre usa os
+        // do admin que tá criando.
+        'company_id': '',
+      });
+      return UserModel.fromJson(resp.data);
+    } on DioException catch (e) {
+      throw parseApiError(e);
+    }
+  }
+
+  /// Troca o cargo de alguém (role mínimo: admin).
+  Future<UserModel> updateUserRole(String userId, String role) async {
+    try {
+      final resp = await _dio.patch('/users/$userId', data: {'role': role});
+      return UserModel.fromJson(resp.data);
+    } on DioException catch (e) {
+      throw parseApiError(e);
+    }
+  }
 
   // ── Produtos ──────────────────────────────────────────────────────────────
 

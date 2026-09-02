@@ -112,7 +112,7 @@ class AuthService {
 
 // Helpers de serialização (sem code gen extra)
 String userModelToJson(UserModel u) =>
-    '{"id":"${u.id}","firebase_uid":"${u.firebaseUid}","email":"${u.email}",'
+    '{"id":"${u.id}","firebase_uid":${u.firebaseUid != null ? '"${u.firebaseUid}"' : 'null'},"email":"${u.email}",'
     '"full_name":"${u.fullName}","role":"${u.role}","is_active":${u.isActive},'
     '"company_id":"${u.companyId}","branch_id":${u.branchId != null ? '"${u.branchId}"' : 'null'},'
     '"created_at":"${u.createdAt}"}';

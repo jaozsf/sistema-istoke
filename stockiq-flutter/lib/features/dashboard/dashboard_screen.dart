@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/stock_providers.dart';
 import '../../core/providers/theme_provider.dart';
+import '../../core/services/app_notifications.dart';
 import '../../core/services/pdf_download.dart';
 import '../../core/services/stock_api_service.dart';
 import '../../core/theme/app_theme.dart';
@@ -41,6 +42,20 @@ class DashboardScreen extends ConsumerWidget {
     final movements = ref.watch(movementsProvider);
     final finance   = ref.watch(financeSummaryProvider(1));
     final themeMode = ref.watch(themeModeProvider);
+
+    // Avisa (notificação real do SO/navegador) quando o estoque baixo
+    // muda de "sem alerta" pra "tem alerta" — dispara uma vez por troca
+    // de estado, não a cada rebuild.
+    ref.listen(lowStockProvider, (previous, next) {
+      final items = next.valueOrNull;
+      final hadNone = previous?.valueOrNull?.isEmpty ?? true;
+      if (items != null && items.isNotEmpty && hadNone) {
+        AppNotifications.notify(
+          'Estoque baixo',
+          '${items.length} produto(s) abaixo do mínimo.',
+        );
+      }
+    });
     final currency  = NumberFormat.currency(locale: 'pt_BR', symbol: 'R\$');
 
     return Scaffold(
@@ -57,6 +72,12 @@ class DashboardScreen extends ConsumerWidget {
           ],
         ),
         actions: [
+          if (user?.isManager ?? false)
+            IconButton(
+              icon: const Icon(Icons.groups_outlined),
+              tooltip: 'Atividade da equipe',
+              onPressed: () => context.push('/team-activity'),
+            ),
           if (user?.isManager ?? false)
             IconButton(
               icon: const Icon(Icons.picture_as_pdf_outlined),

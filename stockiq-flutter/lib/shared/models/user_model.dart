@@ -7,7 +7,7 @@ part 'user_model.g.dart';
 class UserModel with _$UserModel {
   const factory UserModel({
     required String id,
-    @JsonKey(name: 'firebase_uid') required String firebaseUid,
+    @JsonKey(name: 'firebase_uid') String? firebaseUid,
     required String email,
     @JsonKey(name: 'full_name') required String fullName,
     required String role,

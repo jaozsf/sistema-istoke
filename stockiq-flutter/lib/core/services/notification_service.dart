@@ -119,4 +119,30 @@ class NotificationService {
   }
 
   Future<String?> get fcmToken => _storage.read(key: AppConstants.fcmTokenKey);
+
+  /// Dispara uma notificação local ad-hoc (não veio de um push do FCM,
+  /// veio de algo que o próprio app detectou, ex: estoque baixo).
+  Future<void> showAlert(String title, String body) async {
+    await _local.show(
+      DateTime.now().millisecondsSinceEpoch ~/ 1000,
+      title,
+      body,
+      NotificationDetails(
+        android: AndroidNotificationDetails(
+          AppConstants.channelId,
+          AppConstants.channelName,
+          channelDescription: AppConstants.channelDesc,
+          importance: Importance.high,
+          priority: Priority.high,
+          icon: '@mipmap/ic_launcher',
+          color: const Color(0xFF534AB7),
+        ),
+        iOS: const DarwinNotificationDetails(
+          presentAlert: true,
+          presentBadge: true,
+          presentSound: true,
+        ),
+      ),
+    );
+  }
 }

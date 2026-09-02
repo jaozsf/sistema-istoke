@@ -29,6 +29,12 @@ async def create_user(
     db: AsyncSession = Depends(get_db),
     current_user=Depends(require_admin),
 ):
+    # company_id/branch_id nunca vêm do cliente -- sempre a empresa/filial
+    # de quem tá criando. Sem isso um admin podia criar usuário em empresa
+    # alheia só passando outro company_id no corpo da requisição.
+    data.company_id = current_user.company_id
+    if not data.branch_id:
+        data.branch_id = current_user.branch_id
     svc = UserService(db)
     return await svc.create(data, current_user.id)
 

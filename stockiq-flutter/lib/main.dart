@@ -7,7 +7,6 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'core/providers/theme_provider.dart';
 import 'core/router.dart';
 import 'core/theme/app_theme.dart';
-import 'core/services/notification_service.dart';
 import 'firebase_options.dart';
 
 void main() async {
@@ -52,18 +51,8 @@ void main() async {
   // GoogleService-Info.plist, não passa nada aqui.
   await Firebase.initializeApp(options: kIsWeb ? DefaultFirebaseOptions.web : null);
 
-  // Notificações push (web: precisa de firebase-messaging-sw.js + VAPID key
-  // que nao existem nesse projeto ainda -- getToken() trava esperando o
-  // service worker registrar e nunca retorna, travando o app inteiro em
-  // tela branca. Pula no web ate isso ser configurado de verdade.)
-  if (!kIsWeb) {
-    try {
-      await NotificationService.instance.initialize();
-    } catch (_) {
-      // push notifications indisponivel sem projeto Firebase real (dev)
-    }
-  }
-
+  // Pedido de permissão de notificação fica pro login (perto de um gesto
+  // do usuário — navegador tende a bloquear pedido feito sem interação).
   runApp(
     const ProviderScope(
       child: StockIQApp(),

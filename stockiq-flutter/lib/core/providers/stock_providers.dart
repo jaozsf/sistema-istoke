@@ -3,9 +3,20 @@ import '../../shared/models/product_model.dart';
 import '../../shared/models/stock_model.dart';
 import '../../shared/models/movement_model.dart';
 import '../../shared/models/finance_summary.dart';
+import '../../shared/models/user_model.dart';
 import '../services/stock_api_service.dart';
 
 final _api = StockApiService();
+
+// ── Equipe ────────────────────────────────────────────────────────────────────
+
+final usersProvider = FutureProvider<List<UserModel>>((_) => _api.getUsers());
+
+/// Movimentações recentes com limite maior, pra relatório de atividade da
+/// equipe (não usa o feed de 50 do dashboard). 200 é o máximo aceito pela API.
+final teamActivityProvider = FutureProvider<List<MovementModel>>(
+  (_) => _api.getMovements(limit: 200),
+);
 
 // ── Produtos ──────────────────────────────────────────────────────────────────
 
