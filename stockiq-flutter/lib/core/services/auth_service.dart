@@ -34,7 +34,13 @@ class AuthService {
   /// automaticamente pelo backend na primeira vez (role operator).
   Future<UserModel> signInWithGoogle() async {
     try {
-      final credential = await _auth.signInWithPopup(GoogleAuthProvider());
+      // Sem isso o Google pula a tela de escolha de conta e reloga
+      // silenciosamente na última conta usada no navegador — mesmo depois
+      // de "Sair" no app (a sessão do Google no browser é separada da
+      // nossa). Força sempre mostrar o seletor de conta.
+      final provider = GoogleAuthProvider()
+        ..setCustomParameters({'prompt': 'select_account'});
+      final credential = await _auth.signInWithPopup(provider);
       return await _exchangeToken(credential.user!);
     } on FirebaseAuthException catch (e) {
       throw ApiException(
