@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:dio/dio.dart';
@@ -40,7 +41,11 @@ class AuthService {
       // nossa). Força sempre mostrar o seletor de conta.
       final provider = GoogleAuthProvider()
         ..setCustomParameters({'prompt': 'select_account'});
-      final credential = await _auth.signInWithPopup(provider);
+      // signInWithPopup só existe na web -- celular usa o fluxo nativo
+      // (Custom Tabs / ASWebAuthenticationSession) via signInWithProvider.
+      final credential = kIsWeb
+          ? await _auth.signInWithPopup(provider)
+          : await _auth.signInWithProvider(provider);
       return await _exchangeToken(credential.user!);
     } on FirebaseAuthException catch (e) {
       throw ApiException(
