@@ -19,6 +19,10 @@ class Settings(BaseSettings):
 
     # Firebase
     FIREBASE_CREDENTIALS_PATH: str = "./firebase-credentials.json"
+    # Alternativa ao arquivo, pro deploy serverless (Vercel): conteúdo
+    # inteiro do JSON da conta de serviço numa env var. Se setada, tem
+    # prioridade sobre FIREBASE_CREDENTIALS_PATH.
+    FIREBASE_CREDENTIALS_JSON: str = ""
     FIREBASE_PROJECT_ID: str = ""
 
     # Anthropic

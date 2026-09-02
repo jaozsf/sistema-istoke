@@ -1,3 +1,4 @@
+import json
 import firebase_admin
 from firebase_admin import credentials, auth
 from fastapi import HTTPException, status
@@ -12,14 +13,20 @@ def init_firebase():
     if _firebase_app is not None:
         return _firebase_app
 
-    cred_path = settings.FIREBASE_CREDENTIALS_PATH
-    if not os.path.exists(cred_path):
-        raise RuntimeError(
-            f"Firebase credentials não encontrado em: {cred_path}\n"
-            "Baixe o arquivo em: Firebase Console → Configurações → Contas de serviço"
-        )
+    # Serverless (Vercel) não tem arquivo persistente -- credencial vem
+    # inteira como variável de ambiente. Docker/local continua lendo do
+    # arquivo baixado do console, como sempre.
+    if settings.FIREBASE_CREDENTIALS_JSON:
+        cred = credentials.Certificate(json.loads(settings.FIREBASE_CREDENTIALS_JSON))
+    else:
+        cred_path = settings.FIREBASE_CREDENTIALS_PATH
+        if not os.path.exists(cred_path):
+            raise RuntimeError(
+                f"Firebase credentials não encontrado em: {cred_path}\n"
+                "Baixe o arquivo em: Firebase Console → Configurações → Contas de serviço"
+            )
+        cred = credentials.Certificate(cred_path)
 
-    cred = credentials.Certificate(cred_path)
     _firebase_app = firebase_admin.initialize_app(cred)
     return _firebase_app
 

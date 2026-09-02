@@ -30,4 +30,9 @@ class AppConstants {
   static const String channelId      = 'stockiq_channel';
   static const String channelName    = 'StockIQ Alertas';
   static const String channelDesc    = 'Alertas de estoque e movimentações';
+
+  // Chave pública VAPID -- gerada em Firebase Console > Configurações do
+  // projeto > Cloud Messaging > Certificados push da Web. Não é segredo
+  // (é a chave pública do par), só identifica o remetente pro navegador.
+  static const String vapidKey = 'BGe_ymttl4MK6GETcZLImb9ehCnE1tjZ1LBAycWuYha5oC-nurfha6LjZFGWipoeN8GMXgdFC_It2ZVbJh4TENM';
 }
