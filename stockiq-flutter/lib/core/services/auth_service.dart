@@ -6,6 +6,7 @@ import 'package:dio/dio.dart';
 import '../constants/app_constants.dart';
 import '../../shared/models/user_model.dart';
 import 'api_service.dart';
+import 'notification_service.dart';
 
 class AuthService {
   final _auth    = FirebaseAuth.instance;
@@ -79,6 +80,16 @@ class AuthService {
   // ── Logout ───────────────────────────────────────────────────────────────────
 
   Future<void> signOut() async {
+    if (kIsWeb) {
+      final token = await _storage.read(key: AppConstants.fcmTokenKey);
+      if (token != null) {
+        try {
+          await _dio.delete('/users/me/fcm-token/$token');
+        } catch (_) {}
+      }
+    } else {
+      await NotificationService.instance.deleteTokenFromBackend();
+    }
     await _auth.signOut();
     await _storage.delete(key: AppConstants.tokenKey);
     await _storage.delete(key: AppConstants.userKey);

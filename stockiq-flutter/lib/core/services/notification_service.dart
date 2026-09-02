@@ -1,8 +1,12 @@
+import 'dart:io';
 import 'dart:ui';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:go_router/go_router.dart';
 import '../constants/app_constants.dart';
+import '../router.dart';
+import 'api_service.dart';
 
 // Handler para mensagens em background (top-level obrigatório)
 @pragma('vm:entry-point')
@@ -63,16 +67,40 @@ class NotificationService {
     FirebaseMessaging.onMessage.listen(_showLocal);
     FirebaseMessaging.onMessageOpenedApp.listen(_handleOpen);
 
-    // Salva token FCM para enviar ao backend
+    // Salva token FCM localmente e registra no backend (é o backend
+    // quem dispara os pushes reais, ex: alerta de estoque baixo).
     final token = await _fcm.getToken();
     if (token != null) {
       await _storage.write(key: AppConstants.fcmTokenKey, value: token);
+      await _registerToken(token);
     }
 
     // Atualiza token quando renovado
     _fcm.onTokenRefresh.listen((newToken) async {
       await _storage.write(key: AppConstants.fcmTokenKey, value: newToken);
+      await _registerToken(newToken);
     });
+  }
+
+  Future<void> _registerToken(String token) async {
+    try {
+      await ApiService.instance.client.post('/users/me/fcm-token', data: {
+        'token': token,
+        'platform': Platform.isIOS ? 'ios' : 'android',
+      });
+    } catch (_) {
+      // Fogo-e-esquece: falha aqui não pode travar login/inicialização.
+    }
+  }
+
+  /// Remove o token do backend (chamado no logout) pra não mandar push
+  /// pra um aparelho de quem já saiu da conta.
+  Future<void> deleteTokenFromBackend() async {
+    final token = await _storage.read(key: AppConstants.fcmTokenKey);
+    if (token == null) return;
+    try {
+      await ApiService.instance.client.delete('/users/me/fcm-token/$token');
+    } catch (_) {}
   }
 
   Future<void> _showLocal(RemoteMessage message) async {
@@ -104,18 +132,20 @@ class NotificationService {
   }
 
   void _onTap(NotificationResponse response) {
-    // Navegar para rota específica via payload
-    final route = response.payload;
-    if (route != null) {
-      // router.push(route); — conecta ao GoRouter
-    }
+    _navigateTo(response.payload);
   }
 
   void _handleOpen(RemoteMessage message) {
-    final route = message.data['route'];
-    if (route != null) {
-      // router.push(route);
-    }
+    _navigateTo(message.data['route']);
+  }
+
+  /// Navega a partir de fora da árvore de widgets (tap numa notificação
+  /// não tem BuildContext próprio) usando o navigatorKey do GoRouter.
+  void _navigateTo(String? route) {
+    if (route == null) return;
+    final context = rootNavigatorKey.currentContext;
+    if (context == null) return;
+    GoRouter.of(context).push(route);
   }
 
   Future<String?> get fcmToken => _storage.read(key: AppConstants.fcmTokenKey);

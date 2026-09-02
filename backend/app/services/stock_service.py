@@ -70,7 +70,7 @@ class StockService:
             await self._entrada(data.product_id, data.branch_id, data.quantity, product.min_stock)
 
         elif mov_type == MovementType.saida:
-            await self._saida(data.product_id, data.branch_id, data.quantity, product.min_stock)
+            await self._saida(product, data.branch_id, data.quantity, company_id)
 
         elif mov_type == MovementType.transfer:
             if not data.dest_branch_id:
@@ -78,13 +78,16 @@ class StockService:
             dest = await self.branch_repo.get_by_id(data.dest_branch_id)
             if not dest or dest.company_id != company_id:
                 raise HTTPException(status_code=404, detail="Filial de destino não encontrada.")
-            await self._saida(data.product_id, data.branch_id, data.quantity, product.min_stock)
+            await self._saida(product, data.branch_id, data.quantity, company_id)
             await self._entrada(data.product_id, data.dest_branch_id, data.quantity, product.min_stock)
 
         elif mov_type == MovementType.ajuste:
             stock = await self.sRepo.get_or_create(data.product_id, data.branch_id, product.min_stock)
+            was_low = stock.is_low
             stock.quantity = data.quantity
             await self.db.flush()
+            if not was_low and stock.is_low:
+                await self._notify_low_stock(product, stock, company_id)
 
         # Salva movimento
         movement = Movement(
@@ -129,11 +132,14 @@ class StockService:
             raise HTTPException(status_code=404, detail="Produto não encontrado.")
 
         stock = await self.sRepo.get_or_create(product_id, branch_id, product.min_stock)
+        was_low = stock.is_low
         stock.quantity = data.quantity
         if data.min_quantity is not None:
             stock.min_quantity = data.min_quantity
         await self.db.flush()
         await self.db.refresh(stock)
+        if not was_low and stock.is_low:
+            await self._notify_low_stock(product, stock, company_id)
 
         await self.log_repo.record(
             action="stock.adjust", user_id=user_id, company_id=company_id,
@@ -149,12 +155,44 @@ class StockService:
         stock.quantity += qty
         await self.db.flush()
 
-    async def _saida(self, product_id: str, branch_id: str, qty: int, min_qty: int):
-        stock = await self.sRepo.get_or_create(product_id, branch_id, min_qty)
+    async def _saida(self, product, branch_id: str, qty: int, company_id: str):
+        stock = await self.sRepo.get_or_create(product.id, branch_id, product.min_stock)
         if stock.quantity < qty:
             raise HTTPException(
                 status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
                 detail=f"Estoque insuficiente. Disponível: {stock.quantity}, solicitado: {qty}.",
             )
+        was_low = stock.is_low
         stock.quantity -= qty
         await self.db.flush()
+        if not was_low and stock.is_low:
+            await self._notify_low_stock(product, stock, company_id)
+
+    # Só dispara na transição "normal" -> "baixo" (chamadores checam
+    # `was_low` antes de chamar), senão repetiria a cada venda seguinte
+    # já abaixo do mínimo.
+    async def _notify_low_stock(self, product, stock, company_id: str):
+        from app.repositories.user_repository import UserRepository
+        from app.repositories.device_token_repository import DeviceTokenRepository
+        from app.services.push_service import send_push
+
+        users = await UserRepository(self.db).get_by_company(company_id)
+        manager_ids = [u.id for u in users if u.is_active and u.role in ("admin", "manager")]
+        if not manager_ids:
+            return
+
+        tokens = await DeviceTokenRepository(self.db).get_tokens_for_users(manager_ids)
+        if not tokens:
+            return
+
+        branch = await self.branch_repo.get_by_id(stock.branch_id)
+        await send_push(
+            tokens,
+            title="Estoque baixo",
+            body=(
+                f"{product.name} está com {stock.quantity} unidade(s)"
+                f"{f' na filial {branch.name}' if branch else ''} "
+                f"(mínimo: {stock.min_quantity})."
+            ),
+            data={"route": "/stock", "product_id": product.id, "branch_id": stock.branch_id},
+        )

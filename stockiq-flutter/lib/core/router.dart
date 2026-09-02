@@ -20,10 +20,15 @@ import 'providers/auth_provider.dart';
 // acessar é jogado de volta pra /products.
 const _managerOnlyRoutes = ['/dashboard', '/ai', '/team-activity'];
 
+// Navegar a partir de fora da árvore de widgets (ex: tap numa notificação
+// push, sem BuildContext próprio) -- ver NotificationService.
+final rootNavigatorKey = GlobalKey<NavigatorState>();
+
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authStateProvider);
 
   return GoRouter(
+    navigatorKey: rootNavigatorKey,
     initialLocation: '/dashboard',
     redirect: (context, state) {
       final isLoggedIn = authState.valueOrNull?.isLoggedIn ?? false;

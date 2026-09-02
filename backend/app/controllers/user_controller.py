@@ -5,7 +5,8 @@ from app.core.database import get_db
 from app.core.security import get_current_user, require_admin, require_manager
 from app.services.user_service import UserService
 from pydantic import BaseModel, Field
-from app.schemas.user import UserCreate, UserUpdate, UserOut
+from app.schemas.user import UserCreate, UserUpdate, UserOut, FcmTokenIn
+from app.repositories.device_token_repository import DeviceTokenRepository
 
 router = APIRouter(prefix="/users", tags=["Usuários"])
 
@@ -32,6 +33,24 @@ async def update_my_name(
     await db.flush()
     await db.refresh(current_user)
     return current_user
+
+
+@router.post("/me/fcm-token", status_code=204, summary="Registra token de push do dispositivo")
+async def register_fcm_token(
+    data: FcmTokenIn,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    await DeviceTokenRepository(db).upsert(current_user.id, data.token, data.platform)
+
+
+@router.delete("/me/fcm-token/{token}", status_code=204, summary="Remove token de push (logout)")
+async def remove_fcm_token(
+    token: str,
+    db: AsyncSession = Depends(get_db),
+    current_user=Depends(get_current_user),
+):
+    await DeviceTokenRepository(db).delete_by_token(token)
 
 
 @router.get("", response_model=List[UserOut], summary="Listar usuários da empresa")

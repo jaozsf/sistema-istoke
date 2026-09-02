@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr, Field
-from typing import Optional
+from typing import Optional, Literal
 from datetime import datetime
 from app.models.user import UserRole
 
@@ -45,3 +45,8 @@ class TokenOut(BaseModel):
     access_token: str
     token_type: str = "bearer"
     user: UserOut
+
+
+class FcmTokenIn(BaseModel):
+    token: str = Field(min_length=1)
+    platform: Literal["android", "ios", "web"]
