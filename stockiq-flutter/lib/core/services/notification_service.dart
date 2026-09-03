@@ -1,12 +1,18 @@
+import 'dart:convert';
 import 'dart:io';
 import 'dart:ui';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:go_router/go_router.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import '../../shared/models/notification_item.dart';
 import '../constants/app_constants.dart';
 import '../router.dart';
 import 'api_service.dart';
+
+const _storeKey = 'stockiq_notifications';
+const _maxStored = 50;
 
 // Handler para mensagens em background (top-level obrigatório)
 @pragma('vm:entry-point')
@@ -107,6 +113,8 @@ class NotificationService {
     final notification = message.notification;
     if (notification == null) return;
 
+    await _persist(message);
+
     await _local.show(
       notification.hashCode,
       notification.title ?? 'StockIQ',
@@ -149,6 +157,57 @@ class NotificationService {
   }
 
   Future<String?> get fcmToken => _storage.read(key: AppConstants.fcmTokenKey);
+
+  // ── Histórico local (pra tela de Notificações) ──────────────────────────────
+
+  /// Guarda o push recebido no histórico local -- é o que alimenta a tela
+  /// de Notificações. Roda tanto no listener de foreground quanto no
+  /// handler de background (os dois passam por _showLocal).
+  Future<void> _persist(RemoteMessage message) async {
+    final notification = message.notification;
+    if (notification == null) return;
+
+    final item = NotificationItem(
+      id: message.messageId ?? '${DateTime.now().microsecondsSinceEpoch}',
+      title: notification.title ?? 'StockIQ',
+      body: notification.body ?? '',
+      type: message.data['type'] ?? 'warning',
+      route: message.data['route'],
+      receivedAt: DateTime.now(),
+      read: false,
+    );
+
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList(_storeKey) ?? [];
+    raw.insert(0, jsonEncode(item.toJson()));
+    if (raw.length > _maxStored) raw.removeRange(_maxStored, raw.length);
+    await prefs.setStringList(_storeKey, raw);
+  }
+
+  Future<List<NotificationItem>> getStored() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList(_storeKey) ?? [];
+    return raw.map((s) => NotificationItem.fromJson(jsonDecode(s))).toList();
+  }
+
+  Future<void> markRead(String id) async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList(_storeKey) ?? [];
+    final updated = raw.map((s) {
+      final item = NotificationItem.fromJson(jsonDecode(s));
+      return jsonEncode((item.id == id ? item.copyWith(read: true) : item).toJson());
+    }).toList();
+    await prefs.setStringList(_storeKey, updated);
+  }
+
+  Future<void> markAllRead() async {
+    final prefs = await SharedPreferences.getInstance();
+    final raw = prefs.getStringList(_storeKey) ?? [];
+    final updated = raw
+        .map((s) => jsonEncode(NotificationItem.fromJson(jsonDecode(s)).copyWith(read: true).toJson()))
+        .toList();
+    await prefs.setStringList(_storeKey, updated);
+  }
 
   /// Dispara uma notificação local ad-hoc (não veio de um push do FCM,
   /// veio de algo que o próprio app detectou, ex: estoque baixo).
