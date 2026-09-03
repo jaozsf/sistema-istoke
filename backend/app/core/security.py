@@ -1,12 +1,15 @@
+import logging
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 from jose import JWTError, jwt
+from jose.exceptions import ExpiredSignatureError, JWTClaimsError
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.ext.asyncio import AsyncSession
 from app.core.config import settings
 from app.core.database import get_db
 
+logger = logging.getLogger(__name__)
 bearer_scheme = HTTPBearer()
 
 
@@ -25,7 +28,25 @@ def decode_access_token(token: str) -> dict:
     try:
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         return payload
-    except JWTError:
+    except ExpiredSignatureError:
+        logger.warning("JWT rejeitado: expirado.")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Sessão expirada. Faça login novamente.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except JWTClaimsError as exc:
+        logger.warning("JWT rejeitado: claims inválidas (%s).", exc)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Token inválido ou expirado.",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    except JWTError as exc:
+        # Assinatura não bate com SECRET_KEY -- se isso aparecer logo após um
+        # login bem-sucedido, é sinal de instâncias serverless com
+        # SECRET_KEY divergente (env var mudou sem redeploy pegar em todas).
+        logger.warning("JWT rejeitado: assinatura inválida (%s). SECRET_KEY tem %d chars.", exc, len(settings.SECRET_KEY))
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Token inválido ou expirado.",
