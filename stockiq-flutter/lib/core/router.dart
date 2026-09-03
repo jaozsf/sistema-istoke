@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'theme/app_theme.dart';
 import 'utils/responsive.dart';
 import '../shared/widgets/app_widgets.dart';
 import '../features/auth/login_screen.dart';
@@ -139,17 +140,10 @@ class MainShell extends ConsumerWidget {
     if (breakpoint == Breakpoint.mobile) {
       return Scaffold(
         body: _AnimatedTabBody(tabKey: tabRoot, child: child),
-        bottomNavigationBar: BottomNavigationBar(
+        bottomNavigationBar: _PillNavBar(
+          items: navItems,
           currentIndex: currentIndex,
           onTap: (i) => context.go(routes[i]),
-          items: [
-            for (final item in navItems)
-              BottomNavigationBarItem(
-                icon: Icon(item.$1),
-                activeIcon: _PopIcon(icon: item.$2),
-                label: item.$3,
-              ),
-          ],
         ),
       );
     }
@@ -227,7 +221,9 @@ class _AnimatedTabBody extends StatelessWidget {
 /// manual pra manter (dispara sozinho quando o widget monta).
 class _PopIcon extends StatelessWidget {
   final IconData icon;
-  const _PopIcon({required this.icon});
+  final Color? color;
+  final double? size;
+  const _PopIcon({required this.icon, this.color, this.size});
 
   @override
   Widget build(BuildContext context) {
@@ -236,7 +232,104 @@ class _PopIcon extends StatelessWidget {
       duration: const Duration(milliseconds: 250),
       curve: Curves.easeOutBack,
       builder: (_, scale, child) => Transform.scale(scale: scale, child: child),
-      child: Icon(icon),
+      child: Icon(icon, color: color, size: size),
+    );
+  }
+}
+
+/// Bottom nav com pill sólido deslizando atrás do item selecionado
+/// (em vez do BottomNavigationBar padrão do Flutter, sem esse efeito).
+class _PillNavBar extends StatelessWidget {
+  final List<_NavItem> items;
+  final int currentIndex;
+  final ValueChanged<int> onTap;
+  const _PillNavBar({required this.items, required this.currentIndex, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Container(
+        padding: const EdgeInsets.all(6),
+        decoration: BoxDecoration(
+          color: Theme.of(context).colorScheme.surface,
+          borderRadius: BorderRadius.circular(28),
+          boxShadow: [
+            BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 16, offset: const Offset(0, 6)),
+          ],
+        ),
+        child: LayoutBuilder(
+          builder: (context, constraints) {
+            final slotWidth = constraints.maxWidth / items.length;
+            return SizedBox(
+              height: 56,
+              child: Stack(
+                children: [
+                  AnimatedPositioned(
+                    duration: const Duration(milliseconds: 280),
+                    curve: Curves.easeOutCubic,
+                    left: slotWidth * currentIndex,
+                    top: 0,
+                    bottom: 0,
+                    width: slotWidth,
+                    child: const Padding(
+                      padding: EdgeInsets.symmetric(horizontal: 2),
+                      child: DecoratedBox(
+                        decoration: BoxDecoration(
+                          color: AppTheme.primary,
+                          borderRadius: BorderRadius.all(Radius.circular(20)),
+                        ),
+                      ),
+                    ),
+                  ),
+                  Row(
+                    children: [
+                      for (var i = 0; i < items.length; i++)
+                        Expanded(
+                          child: _PillNavItem(
+                            item: items[i],
+                            selected: i == currentIndex,
+                            onTap: () => onTap(i),
+                          ),
+                        ),
+                    ],
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _PillNavItem extends StatelessWidget {
+  final _NavItem item;
+  final bool selected;
+  final VoidCallback onTap;
+  const _PillNavItem({required this.item, required this.selected, required this.onTap});
+
+  @override
+  Widget build(BuildContext context) {
+    final fg = selected ? Colors.white : Theme.of(context).colorScheme.onSurfaceVariant;
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        borderRadius: BorderRadius.circular(20),
+        onTap: onTap,
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            selected ? _PopIcon(icon: item.$2, color: fg, size: 22) : Icon(item.$1, color: fg, size: 22),
+            const SizedBox(height: 2),
+            Text(
+              item.$3,
+              style: TextStyle(color: fg, fontSize: 11, fontWeight: selected ? FontWeight.w600 : FontWeight.w400),
+            ),
+          ],
+        ),
+      ),
     );
   }
 }
