@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/providers/stock_providers.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/responsive.dart';
 import '../../shared/models/stock_model.dart';
 import '../../shared/models/user_model.dart';
 import '../../shared/widgets/app_widgets.dart';
@@ -39,7 +40,8 @@ class ProductDetailScreen extends ConsumerWidget {
         ],
       ),
       body: product.when(
-        data: (p) => ListView(
+        data: (p) => PageContainer(
+          child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
             // Header card
@@ -51,14 +53,17 @@ class ProductDetailScreen extends ConsumerWidget {
                   children: [
                     Row(
                       children: [
-                        Container(
-                          width: 52, height: 52,
-                          decoration: BoxDecoration(
-                            color: AppTheme.primary.withValues(alpha: .1),
-                            borderRadius: BorderRadius.circular(12),
-                          ),
-                          child: const Icon(Icons.inventory_2, color: AppTheme.primary, size: 26),
-                        ),
+                        Builder(builder: (context) {
+                          final size = context.isWide ? 64.0 : 52.0;
+                          return Container(
+                            width: size, height: size,
+                            decoration: BoxDecoration(
+                              color: AppTheme.primary.withValues(alpha: .1),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Icon(Icons.inventory_2, color: AppTheme.primary, size: size * 0.5),
+                          );
+                        }),
                         const SizedBox(width: 12),
                         Expanded(
                           child: Column(
@@ -98,33 +103,45 @@ class ProductDetailScreen extends ConsumerWidget {
                   children: [
                     Text('Preços', style: Theme.of(context).textTheme.titleMedium),
                     const SizedBox(height: 12),
-                    Row(
-                      children: [
-                        Expanded(
-                          child: _InfoBox(
-                            label: 'Preço de venda',
-                            value: currency.format(p.salePrice),
-                            valueColor: AppTheme.success,
-                          ),
+                    Builder(builder: (context) {
+                      final boxes = [
+                        _InfoBox(
+                          label: 'Preço de venda',
+                          value: currency.format(p.salePrice),
+                          valueColor: AppTheme.success,
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _InfoBox(
-                            label: 'Custo',
-                            value: currency.format(p.costPrice),
-                            valueColor: AppTheme.danger,
-                          ),
+                        _InfoBox(
+                          label: 'Custo',
+                          value: currency.format(p.costPrice),
+                          valueColor: AppTheme.danger,
                         ),
-                        const SizedBox(width: 10),
-                        Expanded(
-                          child: _InfoBox(
-                            label: 'Margem',
-                            value: '${p.marginPercent.toStringAsFixed(1)}%',
-                            valueColor: p.marginPercent >= 30 ? AppTheme.success : AppTheme.warning,
-                          ),
+                        _InfoBox(
+                          label: 'Margem',
+                          value: '${p.marginPercent.toStringAsFixed(1)}%',
+                          valueColor: p.marginPercent >= 30 ? AppTheme.success : AppTheme.warning,
                         ),
-                      ],
-                    ),
+                      ];
+                      // Em tela larga cada box fica com largura fixa (não
+                      // estica full-width) -- em mobile continua Expanded.
+                      if (context.isWide) {
+                        return Row(
+                          children: [
+                            for (final (i, box) in boxes.indexed) ...[
+                              if (i > 0) const SizedBox(width: 10),
+                              SizedBox(width: 200, child: box),
+                            ],
+                          ],
+                        );
+                      }
+                      return Row(
+                        children: [
+                          for (final (i, box) in boxes.indexed) ...[
+                            if (i > 0) const SizedBox(width: 10),
+                            Expanded(child: box),
+                          ],
+                        ],
+                      );
+                    }),
                   ],
                 ),
               ),
@@ -225,6 +242,7 @@ class ProductDetailScreen extends ConsumerWidget {
               ],
             ),
           ],
+          ),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => ErrorState(message: e.toString(), onRetry: () => ref.invalidate(productDetailProvider(id))),
@@ -252,7 +270,14 @@ class _InfoBox extends StatelessWidget {
         children: [
           Text(label, style: Theme.of(context).textTheme.bodySmall),
           const SizedBox(height: 4),
-          Text(value, style: TextStyle(fontSize: 14, fontWeight: FontWeight.w600, color: valueColor)),
+          Text(
+            value,
+            style: TextStyle(
+              fontSize: context.isWide ? 16 : 14,
+              fontWeight: FontWeight.w600,
+              color: valueColor,
+            ),
+          ),
         ],
       ),
     );

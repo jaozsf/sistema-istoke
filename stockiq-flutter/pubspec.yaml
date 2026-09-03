@@ -22,6 +22,7 @@ dependencies:
   firebase_auth: ^4.19.5
   firebase_messaging: ^14.9.4
   flutter_local_notifications: ^17.2.1
+  google_sign_in: ^6.2.1
 
   # QR Code
   mobile_scanner: ^5.1.1
@@ -36,6 +37,9 @@ dependencies:
   shimmer: ^3.0.0
   fl_chart: ^0.68.0
   lottie: ^3.1.0
+
+  # Animação
+  flutter_animate: ^4.5.0
 
   # Storage local
   flutter_secure_storage: ^9.0.0

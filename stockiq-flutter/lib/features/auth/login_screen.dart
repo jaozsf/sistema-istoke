@@ -152,7 +152,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
-            child: Form(
+            child: PageContainer(
+              maxWidth: 420,
+              child: Form(
               key: _formKey,
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -269,6 +271,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                 ],
               ),
+              ),
             ),
           ),
         ),
@@ -320,29 +323,32 @@ class _LoginSkeleton extends StatelessWidget {
         child: Center(
           child: SingleChildScrollView(
             padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 40),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Row(
-                  children: [
-                    const AppLogo(size: 48),
-                    const SizedBox(width: 12),
-                    Text('StockIQ', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontSize: 26)),
-                  ],
-                ),
-                const SizedBox(height: 8),
-                const ShimmerCard(height: 12),
-                const SizedBox(height: 40),
-                const ShimmerCard(height: 20),
-                const SizedBox(height: 24),
-                const ShimmerCard(height: 56),
-                const SizedBox(height: 14),
-                const ShimmerCard(height: 56),
-                const SizedBox(height: 28),
-                const ShimmerCard(height: 48),
-                const SizedBox(height: 20),
-                const ShimmerCard(height: 48),
-              ],
+            child: PageContainer(
+              maxWidth: 420,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const AppLogo(size: 48),
+                      const SizedBox(width: 12),
+                      Text('StockIQ', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontSize: 26)),
+                    ],
+                  ),
+                  const SizedBox(height: 8),
+                  const ShimmerCard(height: 12),
+                  const SizedBox(height: 40),
+                  const ShimmerCard(height: 20),
+                  const SizedBox(height: 24),
+                  const ShimmerCard(height: 56),
+                  const SizedBox(height: 14),
+                  const ShimmerCard(height: 56),
+                  const SizedBox(height: 28),
+                  const ShimmerCard(height: 48),
+                  const SizedBox(height: 20),
+                  const ShimmerCard(height: 48),
+                ],
+              ),
             ),
           ),
         ),

@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/animations.dart';
+import '../../core/utils/responsive.dart';
+import '../../shared/widgets/app_widgets.dart';
 
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
@@ -30,11 +33,13 @@ class NotificationsScreen extends StatelessWidget {
                 ],
               ),
             )
-          : ListView.separated(
-              padding: const EdgeInsets.all(16),
-              itemCount: notifications.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (_, i) => _NotificationCard(n: notifications[i]),
+          : PageContainer(
+              child: ListView.separated(
+                padding: const EdgeInsets.all(16),
+                itemCount: notifications.length,
+                separatorBuilder: (_, __) => const SizedBox(height: 8),
+                itemBuilder: (_, i) => _NotificationCard(n: notifications[i]).entrance(index: i),
+              ),
             ),
     );
   }
@@ -90,15 +95,16 @@ class _NotificationCard extends StatelessWidget {
       _         => (AppTheme.info,    Icons.info_outline),
     };
 
+    final iconSize = context.isWide ? 48.0 : 40.0;
     return Card(
       child: ListTile(
         leading: Container(
-          width: 40, height: 40,
+          width: iconSize, height: iconSize,
           decoration: BoxDecoration(
             color: color.withValues(alpha: .12),
             borderRadius: BorderRadius.circular(10),
           ),
-          child: Icon(icon, color: color, size: 20),
+          child: Icon(icon, color: color, size: iconSize * 0.5),
         ),
         title: Row(
           children: [

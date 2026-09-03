@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/providers/stock_providers.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/animations.dart';
+import '../../shared/widgets/app_widgets.dart';
 
 class AiAssistantScreen extends ConsumerStatefulWidget {
   const AiAssistantScreen({super.key});
@@ -95,29 +97,32 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
         children: [
           // Chips de sugestão (somente quando sem mensagens)
           if (messages.isEmpty)
-            _SuggestionsPanel(suggestions: _suggestions, onTap: _send),
+            PageContainer(maxWidth: 700, child: _SuggestionsPanel(suggestions: _suggestions, onTap: _send)),
 
           // Mensagens
           Expanded(
             child: messages.isEmpty
                 ? _EmptyAI()
-                : ListView.builder(
-                    controller: _scrollCtrl,
-                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-                    itemCount: messages.length,
-                    itemBuilder: (_, i) {
-                      final msg = messages[i];
-                      return _MessageBubble(
-                        text: msg.text,
-                        isUser: msg.role == 'user',
-                        isLoading: msg.text == '...',
-                      );
-                    },
+                : PageContainer(
+                    maxWidth: 700,
+                    child: ListView.builder(
+                      controller: _scrollCtrl,
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      itemCount: messages.length,
+                      itemBuilder: (_, i) {
+                        final msg = messages[i];
+                        return _MessageBubble(
+                          text: msg.text,
+                          isUser: msg.role == 'user',
+                          isLoading: msg.text == '...',
+                        ).entrance(index: i);
+                      },
+                    ),
                   ),
           ),
 
           // Input
-          _InputBar(ctrl: _ctrl, sending: _sending, onSend: _send),
+          PageContainer(maxWidth: 700, child: _InputBar(ctrl: _ctrl, sending: _sending, onSend: _send)),
         ],
       ),
     );

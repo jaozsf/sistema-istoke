@@ -1,6 +1,7 @@
 import 'dart:convert';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:dio/dio.dart';
 import '../constants/app_constants.dart';
@@ -9,9 +10,10 @@ import 'api_service.dart';
 import 'notification_service.dart';
 
 class AuthService {
-  final _auth    = FirebaseAuth.instance;
-  final _storage = const FlutterSecureStorage();
-  final _dio     = ApiService.instance.client;
+  final _auth       = FirebaseAuth.instance;
+  final _googleSignIn = GoogleSignIn();
+  final _storage    = const FlutterSecureStorage();
+  final _dio        = ApiService.instance.client;
 
   // ── Login ────────────────────────────────────────────────────────────────────
 
@@ -32,22 +34,37 @@ class AuthService {
     }
   }
 
-  /// Login/cadastro com Google (web: popup). Conta nova é criada
-  /// automaticamente pelo backend na primeira vez (role operator).
+  /// Login/cadastro com Google (web: popup; mobile: SDK nativo). Conta
+  /// nova é criada automaticamente pelo backend na primeira vez.
   Future<UserModel> signInWithGoogle() async {
     try {
-      // Sem isso o Google pula a tela de escolha de conta e reloga
-      // silenciosamente na última conta usada no navegador — mesmo depois
-      // de "Sair" no app (a sessão do Google no browser é separada da
-      // nossa). Força sempre mostrar o seletor de conta.
-      final provider = GoogleAuthProvider()
-        ..setCustomParameters({'prompt': 'select_account'});
-      // signInWithPopup só existe na web -- celular usa o fluxo nativo
-      // (Custom Tabs / ASWebAuthenticationSession) via signInWithProvider.
-      final credential = kIsWeb
-          ? await _auth.signInWithPopup(provider)
-          : await _auth.signInWithProvider(provider);
-      return await _exchangeToken(credential.user!);
+      if (kIsWeb) {
+        // Sem isso o Google pula a tela de escolha de conta e reloga
+        // silenciosamente na última conta usada no navegador — mesmo
+        // depois de "Sair" no app (sessão do Google no browser é
+        // separada da nossa). Força sempre mostrar o seletor de conta.
+        final provider = GoogleAuthProvider()
+          ..setCustomParameters({'prompt': 'select_account'});
+        final credential = await _auth.signInWithPopup(provider);
+        return await _exchangeToken(credential.user!);
+      }
+
+      // Mobile: usa o SDK nativo do Google em vez de signInWithProvider
+      // (Custom Tab) -- esse último quebra em muitos aparelhos com
+      // "missing initial state" quando o navegador padrão particiona
+      // storage entre origens durante o redirect do OAuth.
+      await _googleSignIn.signOut(); // força mostrar o seletor de conta
+      final googleUser = await _googleSignIn.signIn();
+      if (googleUser == null) {
+        throw ApiException(statusCode: 401, message: 'Login cancelado.');
+      }
+      final googleAuth = await googleUser.authentication;
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+      final userCredential = await _auth.signInWithCredential(credential);
+      return await _exchangeToken(userCredential.user!);
     } on FirebaseAuthException catch (e) {
       throw ApiException(
         statusCode: 401,
@@ -89,6 +106,7 @@ class AuthService {
       }
     } else {
       await NotificationService.instance.deleteTokenFromBackend();
+      await _googleSignIn.signOut();
     }
     await _auth.signOut();
     await _storage.delete(key: AppConstants.tokenKey);

@@ -1,6 +1,31 @@
 import 'package:flutter/material.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/responsive.dart';
+
+// ── Page Container ───────────────────────────────────────────────────────────
+
+/// Centraliza o conteúdo com largura máxima em telas largas (tablet/desktop)
+/// -- evita lista/formulário esticado de ponta a ponta num monitor grande.
+/// No mobile é passthrough, comportamento igual ao de antes.
+class PageContainer extends StatelessWidget {
+  final Widget child;
+  final double maxWidth;
+
+  const PageContainer({super.key, required this.child, this.maxWidth = 1100});
+
+  @override
+  Widget build(BuildContext context) {
+    if (!context.isWide) return child;
+    return Align(
+      alignment: Alignment.topCenter,
+      child: ConstrainedBox(
+        constraints: BoxConstraints(maxWidth: maxWidth),
+        child: child,
+      ),
+    );
+  }
+}
 
 // ── Logo do app ───────────────────────────────────────────────────────────────
 

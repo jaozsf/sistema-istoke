@@ -7,6 +7,8 @@ import '../../core/providers/stock_providers.dart';
 import '../../core/services/pdf_download.dart';
 import '../../core/services/stock_api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/animations.dart';
+import '../../core/utils/responsive.dart';
 import '../../shared/models/product_model.dart';
 import '../../shared/models/user_model.dart';
 import '../../shared/widgets/app_widgets.dart';
@@ -102,13 +104,15 @@ class _ProductsScreenState extends ConsumerState<ProductsScreen> {
                 }
                 return RefreshIndicator(
                   onRefresh: () async => ref.invalidate(productsProvider(_query)),
-                  child: ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
-                    itemCount: items.length,
-                    separatorBuilder: (_, __) => const SizedBox(height: 8),
-                    itemBuilder: (_, i) => _ProductCard(
-                      product: items[i],
-                      currency: currency,
+                  child: PageContainer(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 80),
+                      itemCount: items.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (_, i) => _ProductCard(
+                        product: items[i],
+                        currency: currency,
+                      ).entrance(index: i),
                     ),
                   ),
                 );
@@ -149,14 +153,17 @@ class _ProductCard extends StatelessWidget {
           child: Row(
             children: [
               // Ícone de categoria
-              Container(
-                width: 44, height: 44,
-                decoration: BoxDecoration(
-                  color: AppTheme.primary.withValues(alpha: .1),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: const Icon(Icons.inventory_2_outlined, color: AppTheme.primary, size: 22),
-              ),
+              Builder(builder: (context) {
+                final size = context.isWide ? 52.0 : 44.0;
+                return Container(
+                  width: size, height: size,
+                  decoration: BoxDecoration(
+                    color: AppTheme.primary.withValues(alpha: .1),
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Icon(Icons.inventory_2_outlined, color: AppTheme.primary, size: size * 0.5),
+                );
+              }),
               const SizedBox(width: 12),
 
               // Info

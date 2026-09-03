@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../core/providers/stock_providers.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/animations.dart';
+import '../../core/utils/responsive.dart';
 import '../../shared/models/movement_model.dart';
 import '../../shared/models/stock_model.dart';
 import '../../shared/widgets/app_widgets.dart';
@@ -105,11 +107,13 @@ class _StockTab extends ConsumerWidget {
                 ),
               ),
               Expanded(
-                child: ListView.separated(
-                  padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
-                  itemCount: items.length,
-                  separatorBuilder: (_, __) => const SizedBox(height: 8),
-                  itemBuilder: (_, i) => _StockCard(stock: items[i]),
+                child: PageContainer(
+                  child: ListView.separated(
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 80),
+                    itemCount: items.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 8),
+                    itemBuilder: (_, i) => _StockCard(stock: items[i]).entrance(index: i),
+                  ),
                 ),
               ),
             ],
@@ -161,45 +165,56 @@ class _StockCard extends StatelessWidget {
             const SizedBox(height: 10),
             StockLevelBar(quantity: stock.quantity, minQuantity: stock.minQuantity),
             const SizedBox(height: 10),
-            Row(
-              children: [
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.add, size: 16),
-                    label: const Text('Entrada'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.success,
-                      side: const BorderSide(color: AppTheme.success),
-                      minimumSize: const Size(0, 36),
-                      textStyle: const TextStyle(fontSize: 12),
-                    ),
-                    onPressed: () => context.push('/stock/movement', extra: {
-                      'productId': stock.productId,
-                      'branchId': stock.branchId,
-                      'type': 'entrada',
-                    }),
-                  ),
+            Builder(builder: (context) {
+              final entradaBtn = OutlinedButton.icon(
+                icon: const Icon(Icons.add, size: 16),
+                label: const Text('Entrada'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.success,
+                  side: const BorderSide(color: AppTheme.success),
+                  minimumSize: const Size(0, 36),
+                  textStyle: const TextStyle(fontSize: 12),
                 ),
-                const SizedBox(width: 8),
-                Expanded(
-                  child: OutlinedButton.icon(
-                    icon: const Icon(Icons.remove, size: 16),
-                    label: const Text('Saída'),
-                    style: OutlinedButton.styleFrom(
-                      foregroundColor: AppTheme.danger,
-                      side: const BorderSide(color: AppTheme.danger),
-                      minimumSize: const Size(0, 36),
-                      textStyle: const TextStyle(fontSize: 12),
-                    ),
-                    onPressed: () => context.push('/stock/movement', extra: {
-                      'productId': stock.productId,
-                      'branchId': stock.branchId,
-                      'type': 'saida',
-                    }),
-                  ),
+                onPressed: () => context.push('/stock/movement', extra: {
+                  'productId': stock.productId,
+                  'branchId': stock.branchId,
+                  'type': 'entrada',
+                }),
+              );
+              final saidaBtn = OutlinedButton.icon(
+                icon: const Icon(Icons.remove, size: 16),
+                label: const Text('Saída'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: AppTheme.danger,
+                  side: const BorderSide(color: AppTheme.danger),
+                  minimumSize: const Size(0, 36),
+                  textStyle: const TextStyle(fontSize: 12),
                 ),
-              ],
-            ),
+                onPressed: () => context.push('/stock/movement', extra: {
+                  'productId': stock.productId,
+                  'branchId': stock.branchId,
+                  'type': 'saida',
+                }),
+              );
+              // Em tela larga os botões ficam com largura fixa (não esticam
+              // o card inteiro) -- em mobile continuam Expanded.
+              if (context.isWide) {
+                return Row(
+                  children: [
+                    SizedBox(width: 140, child: entradaBtn),
+                    const SizedBox(width: 8),
+                    SizedBox(width: 140, child: saidaBtn),
+                  ],
+                );
+              }
+              return Row(
+                children: [
+                  Expanded(child: entradaBtn),
+                  const SizedBox(width: 8),
+                  Expanded(child: saidaBtn),
+                ],
+              );
+            }),
           ],
         ),
       ),
@@ -227,11 +242,13 @@ class _MovementsTab extends ConsumerWidget {
               subtitle: 'As movimentações aparecerão aqui.',
             );
           }
-          return ListView.separated(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
-            itemCount: items.length,
-            separatorBuilder: (_, __) => const SizedBox(height: 8),
-            itemBuilder: (_, i) => _MovementCard(movement: items[i]),
+          return PageContainer(
+            child: ListView.separated(
+              padding: const EdgeInsets.fromLTRB(16, 16, 16, 80),
+              itemCount: items.length,
+              separatorBuilder: (_, __) => const SizedBox(height: 8),
+              itemBuilder: (_, i) => _MovementCard(movement: items[i]).entrance(index: i),
+            ),
           );
         },
         loading: () => ListView(

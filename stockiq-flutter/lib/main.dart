@@ -1,3 +1,4 @@
+import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/services.dart';
@@ -30,11 +31,14 @@ void main() async {
         ),
       );
 
-  // Orientação: portrait only
-  await SystemChrome.setPreferredOrientations([
-    DeviceOrientation.portraitUp,
-    DeviceOrientation.portraitDown,
-  ]);
+  // Orientação: portrait only só em celular -- web/desktop não tem esse
+  // conceito de orientação de tela, travar lá não faz sentido.
+  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS)) {
+    await SystemChrome.setPreferredOrientations([
+      DeviceOrientation.portraitUp,
+      DeviceOrientation.portraitDown,
+    ]);
+  }
 
   // Status bar transparente
   SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(

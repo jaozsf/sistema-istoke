@@ -6,6 +6,7 @@ import '../../core/providers/auth_provider.dart';
 import '../../core/providers/stock_providers.dart';
 import '../../core/services/stock_api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/responsive.dart';
 import '../../shared/models/product_model.dart';
 
 class MovementScreen extends ConsumerStatefulWidget {
@@ -113,33 +114,42 @@ class _MovementScreenState extends ConsumerState<MovementScreen> {
             // Tipo de movimentação
             Text('Tipo', style: theme.textTheme.bodySmall),
             const SizedBox(height: 8),
-            Row(
-              children: [
-                _TypeChip(
-                  label: 'Entrada',
-                  icon: Icons.add_circle_outline,
-                  color: AppTheme.success,
-                  selected: _type == 'entrada',
-                  onTap: () => setState(() { _type = 'entrada'; _hasArt = false; _hasBorder = false; }),
-                ),
-                const SizedBox(width: 10),
-                _TypeChip(
-                  label: 'Saída',
-                  icon: Icons.remove_circle_outline,
-                  color: AppTheme.danger,
-                  selected: _type == 'saida',
-                  onTap: () => setState(() => _type = 'saida'),
-                ),
-                const SizedBox(width: 10),
-                _TypeChip(
-                  label: 'Transfer',
-                  icon: Icons.swap_horiz,
-                  color: AppTheme.info,
-                  selected: _type == 'transfer',
-                  onTap: () => setState(() { _type = 'transfer'; _hasArt = false; _hasBorder = false; }),
-                ),
-              ],
-            ),
+            Builder(builder: (context) {
+              // Em tela larga os chips ficam com largura fixa (não esticam
+              // pra preencher a linha inteira) -- em mobile continuam
+              // dividindo a largura igualmente (Expanded).
+              final fixedWidth = context.isWide ? 160.0 : null;
+              return Row(
+                children: [
+                  _TypeChip(
+                    label: 'Entrada',
+                    icon: Icons.add_circle_outline,
+                    color: AppTheme.success,
+                    selected: _type == 'entrada',
+                    fixedWidth: fixedWidth,
+                    onTap: () => setState(() { _type = 'entrada'; _hasArt = false; _hasBorder = false; }),
+                  ),
+                  const SizedBox(width: 10),
+                  _TypeChip(
+                    label: 'Saída',
+                    icon: Icons.remove_circle_outline,
+                    color: AppTheme.danger,
+                    selected: _type == 'saida',
+                    fixedWidth: fixedWidth,
+                    onTap: () => setState(() => _type = 'saida'),
+                  ),
+                  const SizedBox(width: 10),
+                  _TypeChip(
+                    label: 'Transfer',
+                    icon: Icons.swap_horiz,
+                    color: AppTheme.info,
+                    selected: _type == 'transfer',
+                    fixedWidth: fixedWidth,
+                    onTap: () => setState(() { _type = 'transfer'; _hasArt = false; _hasBorder = false; }),
+                  ),
+                ],
+              );
+            }),
             const SizedBox(height: 24),
 
             // Produto
@@ -274,7 +284,7 @@ class _MovementScreenState extends ConsumerState<MovementScreen> {
                 hintText: 'Ou digite a quantidade exata (caixa aberta)',
                 prefixIcon: Icon(Icons.numbers, size: 20),
               ),
-              style: const TextStyle(fontSize: 22, fontWeight: FontWeight.w600),
+              style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w600),
               validator: (v) {
                 if (v == null || v.isEmpty) return 'Informe a quantidade.';
                 if (int.tryParse(v) == null || int.parse(v) <= 0) return 'Quantidade inválida.';
@@ -317,7 +327,7 @@ class _MovementScreenState extends ConsumerState<MovementScreen> {
                       children: [
                         Text(
                           '$sign$qty unid',
-                          style: TextStyle(fontSize: 28, fontWeight: FontWeight.w700, color: color),
+                          style: TextStyle(fontSize: 26, fontWeight: FontWeight.w700, color: color),
                         ),
                         const SizedBox(width: 8),
                         Text(
@@ -356,6 +366,10 @@ class _TypeChip extends StatelessWidget {
   final Color color;
   final bool selected;
   final VoidCallback onTap;
+  /// Se informado, o chip fica com essa largura fixa em vez de dividir a
+  /// linha via Expanded (usado em tela larga, onde 3 chips esticados
+  /// ficariam gigantes).
+  final double? fixedWidth;
 
   const _TypeChip({
     required this.label,
@@ -363,41 +377,42 @@ class _TypeChip extends StatelessWidget {
     required this.color,
     required this.selected,
     required this.onTap,
+    this.fixedWidth,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 180),
-          padding: const EdgeInsets.symmetric(vertical: 12),
-          decoration: BoxDecoration(
-            color: selected ? color.withValues(alpha: .12) : Colors.transparent,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: selected ? color : Theme.of(context).colorScheme.outline,
-              width: selected ? 1.5 : 0.5,
-            ),
+    final chip = GestureDetector(
+      onTap: onTap,
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 180),
+        padding: const EdgeInsets.symmetric(vertical: 12),
+        decoration: BoxDecoration(
+          color: selected ? color.withValues(alpha: .12) : Colors.transparent,
+          borderRadius: BorderRadius.circular(10),
+          border: Border.all(
+            color: selected ? color : Theme.of(context).colorScheme.outline,
+            width: selected ? 1.5 : 0.5,
           ),
-          child: Column(
-            children: [
-              Icon(icon, color: selected ? color : Theme.of(context).colorScheme.outline, size: 22),
-              const SizedBox(height: 4),
-              Text(
-                label,
-                style: TextStyle(
-                  fontSize: 12,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                  color: selected ? color : Theme.of(context).colorScheme.outline,
-                ),
+        ),
+        child: Column(
+          children: [
+            Icon(icon, color: selected ? color : Theme.of(context).colorScheme.outline, size: 22),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                color: selected ? color : Theme.of(context).colorScheme.outline,
               ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
+    if (fixedWidth != null) return SizedBox(width: fixedWidth, child: chip);
+    return Expanded(child: chip);
   }
 }
 

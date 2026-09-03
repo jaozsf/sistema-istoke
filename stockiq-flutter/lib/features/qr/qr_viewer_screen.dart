@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import '../../core/providers/stock_providers.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/responsive.dart';
 import '../../shared/widgets/app_widgets.dart';
 
 class QRViewerScreen extends ConsumerWidget {
@@ -17,12 +18,15 @@ class QRViewerScreen extends ConsumerWidget {
       appBar: AppBar(title: const Text('QR Code do produto')),
       body: product.when(
         data: (p) => Center(
-          child: Padding(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 400),
+            child: Padding(
             padding: const EdgeInsets.all(32),
             child: Column(
               mainAxisSize: MainAxisSize.min,
               children: [
-                // QR Code gerado localmente pelo flutter
+                // QR Code gerado localmente pelo flutter -- escala até
+                // ~320px em telas largas, sem ficar minúsculo num monitor.
                 Card(
                   child: Padding(
                     padding: const EdgeInsets.all(20),
@@ -31,7 +35,7 @@ class QRViewerScreen extends ConsumerWidget {
                         QrImageView(
                           data: p.qrCode ?? 'STOCKIQ:${p.companyId}:${p.id}:${p.sku}',
                           version: QrVersions.auto,
-                          size: 220,
+                          size: context.isWide ? 320 : 220,
                           eyeStyle: const QrEyeStyle(
                             eyeShape: QrEyeShape.square,
                             color: Color(0xFF1A1A1A),
@@ -91,6 +95,7 @@ class QRViewerScreen extends ConsumerWidget {
                   },
                 ),
               ],
+            ),
             ),
           ),
         ),

@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../core/providers/stock_providers.dart';
 import '../../core/services/stock_api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../shared/widgets/app_widgets.dart';
 
 class ProductFormScreen extends ConsumerStatefulWidget {
   final String? productId;
@@ -117,7 +118,9 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
       ),
       body: Form(
         key: _formKey,
-        child: ListView(
+        child: PageContainer(
+          maxWidth: 700,
+          child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
             _section('Identificação'),
@@ -183,6 +186,7 @@ class _ProductFormScreenState extends ConsumerState<ProductFormScreen> {
               inputFormatters: [FilteringTextInputFormatter.digitsOnly]),
             const SizedBox(height: 32),
           ],
+          ),
         ),
       ),
     );

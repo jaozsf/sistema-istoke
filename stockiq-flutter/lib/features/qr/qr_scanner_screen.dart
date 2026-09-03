@@ -213,7 +213,8 @@ class _OverlayPainter extends CustomPainter {
   @override
   void paint(Canvas canvas, Size size) {
     final paint = Paint()..color = Colors.black54;
-    final side  = size.width * 0.68;
+    // Teto pra não virar gigante numa webcam/monitor desktop bem largo.
+    final side  = (size.width * 0.68).clamp(0.0, 480.0);
     final left  = (size.width - side) / 2;
     final top   = (size.height - side) / 2;
     final rect  = Rect.fromLTWH(left, top, side, side);
@@ -235,7 +236,10 @@ class _OverlayPainter extends CustomPainter {
       ..strokeWidth = 3
       ..strokeCap = StrokeCap.round;
 
-    const cLen = 24.0;
+    // Comprimento do canto escala com o tamanho do recorte em vez de ficar
+    // fixo em 24 -- mesma proporção de antes (24/~245 de recorte no
+    // celular), só que consistente em qualquer tamanho de overlay.
+    final cLen = (side * 0.098).clamp(16.0, 40.0);
     // TL
     canvas.drawLine(Offset(left, top + cLen), Offset(left, top), cornerPaint);
     canvas.drawLine(Offset(left, top), Offset(left + cLen, top), cornerPaint);

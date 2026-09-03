@@ -9,6 +9,8 @@ import '../../core/services/app_notifications.dart';
 import '../../core/services/pdf_download.dart';
 import '../../core/services/stock_api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/animations.dart';
+import '../../core/utils/responsive.dart';
 import '../../shared/models/movement_model.dart';
 import '../../shared/models/user_model.dart';
 import '../../shared/widgets/app_widgets.dart';
@@ -169,103 +171,113 @@ class DashboardScreen extends ConsumerWidget {
         child: ListView(
           padding: const EdgeInsets.all(16),
           children: [
-            // Métricas
-            GridView.count(
-              crossAxisCount: 2,
-              shrinkWrap: true,
-              physics: const NeverScrollableScrollPhysics(),
-              crossAxisSpacing: 10,
-              mainAxisSpacing: 10,
-              childAspectRatio: 1.6,
-              children: [
-                finance.when(
-                  data: (f) => MetricCard(
-                    label: 'Receita hoje',
-                    value: currency.format(f.receita),
-                    delta: f.receita > 0 ? 'Hoje' : 'Nenhuma venda ainda',
-                    deltaPositive: true,
+            PageContainer(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Métricas
+                  GridView.count(
+                    crossAxisCount: context.isWide ? 4 : 2,
+                    shrinkWrap: true,
+                    physics: const NeverScrollableScrollPhysics(),
+                    crossAxisSpacing: 10,
+                    mainAxisSpacing: 10,
+                    childAspectRatio: context.isWide ? 1.9 : 1.6,
+                    children: [
+                      finance.when(
+                        data: (f) => MetricCard(
+                          label: 'Receita hoje',
+                          value: currency.format(f.receita),
+                          delta: f.receita > 0 ? 'Hoje' : 'Nenhuma venda ainda',
+                          deltaPositive: true,
+                        ).entrance(index: 0),
+                        loading: () => const ShimmerCard(height: 80),
+                        error: (_, __) => const MetricCard(label: 'Receita hoje', value: '--'),
+                      ),
+                      finance.when(
+                        data: (f) => MetricCard(
+                          label: 'Lucro líquido',
+                          value: currency.format(f.lucro),
+                          delta: f.lucro > 0 ? 'Hoje' : 'Nenhuma venda ainda',
+                          deltaPositive: true,
+                          valueColor: AppTheme.success,
+                        ).entrance(index: 1),
+                        loading: () => const ShimmerCard(height: 80),
+                        error: (_, __) => const MetricCard(label: 'Lucro líquido', value: '--'),
+                      ),
+                      movements.when(
+                        data: (items) => MetricCard(
+                          label: 'Movimentações',
+                          value: '${items.length}',
+                          delta: 'Total',
+                          deltaPositive: true,
+                        ).entrance(index: 2),
+                        loading: () => const ShimmerCard(height: 80),
+                        error: (_, __) => const MetricCard(label: 'Movimentações', value: '--'),
+                      ),
+                      lowStock.when(
+                        data: (items) => MetricCard(
+                          label: 'Alertas de estoque',
+                          value: '${items.length}',
+                          delta: items.isEmpty ? 'Tudo OK' : 'Itens críticos',
+                          deltaPositive: items.isEmpty,
+                          valueColor: items.isNotEmpty ? AppTheme.warning : null,
+                        ).entrance(index: 3),
+                        loading: () => const ShimmerCard(height: 80),
+                        error: (_, __) => const MetricCard(label: 'Alertas', value: '--'),
+                      ),
+                    ],
                   ),
-                  loading: () => const ShimmerCard(height: 80),
-                  error: (_, __) => const MetricCard(label: 'Receita hoje', value: '--'),
-                ),
-                finance.when(
-                  data: (f) => MetricCard(
-                    label: 'Lucro líquido',
-                    value: currency.format(f.lucro),
-                    delta: f.lucro > 0 ? 'Hoje' : 'Nenhuma venda ainda',
-                    deltaPositive: true,
-                    valueColor: AppTheme.success,
-                  ),
-                  loading: () => const ShimmerCard(height: 80),
-                  error: (_, __) => const MetricCard(label: 'Lucro líquido', value: '--'),
-                ),
-                movements.when(
-                  data: (items) => MetricCard(
-                    label: 'Movimentações',
-                    value: '${items.length}',
-                    delta: 'Total',
-                    deltaPositive: true,
-                  ),
-                  loading: () => const ShimmerCard(height: 80),
-                  error: (_, __) => const MetricCard(label: 'Movimentações', value: '--'),
-                ),
-                lowStock.when(
-                  data: (items) => MetricCard(
-                    label: 'Alertas de estoque',
-                    value: '${items.length}',
-                    delta: items.isEmpty ? 'Tudo OK' : 'Itens críticos',
-                    deltaPositive: items.isEmpty,
-                    valueColor: items.isNotEmpty ? AppTheme.warning : null,
-                  ),
-                  loading: () => const ShimmerCard(height: 80),
-                  error: (_, __) => const MetricCard(label: 'Alertas', value: '--'),
-                ),
-              ],
-            ),
-            const SizedBox(height: 20),
+                  const SizedBox(height: 20),
 
-            // Alertas de estoque baixo
-            lowStock.when(
-              data: (items) {
-                if (items.isEmpty) return const SizedBox();
-                return Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SectionHeader(
-                      title: 'Alertas de estoque',
-                      action: 'Ver todos',
-                      onAction: () => context.go('/stock'),
+                  // Alertas de estoque baixo
+                  lowStock.when(
+                    data: (items) {
+                      if (items.isEmpty) return const SizedBox();
+                      return Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          SectionHeader(
+                            title: 'Alertas de estoque',
+                            action: 'Ver todos',
+                            onAction: () => context.go('/stock'),
+                          ),
+                          const SizedBox(height: 8),
+                          ...items.take(3).map((s) => _AlertTile(stock: s)),
+                          const SizedBox(height: 20),
+                        ],
+                      );
+                    },
+                    loading: () => const ShimmerCard(height: 120),
+                    error: (_, __) => const SizedBox(),
+                  ),
+
+                  // Movimentações recentes
+                  SectionHeader(
+                    title: 'Movimentações recentes',
+                    action: 'Ver todas',
+                    onAction: () => context.go('/stock'),
+                  ),
+                  const SizedBox(height: 8),
+                  movements.when(
+                    data: (items) => Column(
+                      children: [
+                        for (final (i, m) in items.take(5).indexed)
+                          _MovementTile(movement: m).entrance(index: i),
+                      ],
                     ),
-                    const SizedBox(height: 8),
-                    ...items.take(3).map((s) => _AlertTile(stock: s)),
-                    const SizedBox(height: 20),
-                  ],
-                );
-              },
-              loading: () => const ShimmerCard(height: 120),
-              error: (_, __) => const SizedBox(),
-            ),
-
-            // Movimentações recentes
-            SectionHeader(
-              title: 'Movimentações recentes',
-              action: 'Ver todas',
-              onAction: () => context.go('/stock'),
-            ),
-            const SizedBox(height: 8),
-            movements.when(
-              data: (items) => Column(
-                children: items.take(5).map((m) => _MovementTile(movement: m)).toList(),
-              ),
-              loading: () => Column(
-                children: List.generate(4, (_) => Padding(
-                  padding: const EdgeInsets.only(bottom: 8),
-                  child: ShimmerCard(height: 62),
-                )),
-              ),
-              error: (e, _) => ErrorState(
-                message: 'Erro ao carregar movimentações',
-                onRetry: () => ref.invalidate(movementsProvider),
+                    loading: () => Column(
+                      children: List.generate(4, (_) => Padding(
+                        padding: const EdgeInsets.only(bottom: 8),
+                        child: ShimmerCard(height: 62),
+                      )),
+                    ),
+                    error: (e, _) => ErrorState(
+                      message: 'Erro ao carregar movimentações',
+                      onRetry: () => ref.invalidate(movementsProvider),
+                    ),
+                  ),
+                ],
               ),
             ),
           ],

@@ -4,6 +4,8 @@ import 'package:intl/intl.dart';
 import '../../core/providers/stock_providers.dart';
 import '../../core/services/stock_api_service.dart';
 import '../../core/theme/app_theme.dart';
+import '../../core/utils/animations.dart';
+import '../../core/utils/responsive.dart';
 import '../../shared/models/movement_model.dart';
 import '../../shared/models/user_model.dart';
 import '../../shared/widgets/app_widgets.dart';
@@ -98,13 +100,15 @@ class _ActivityTabState extends ConsumerState<_ActivityTab> {
                       ref.invalidate(teamActivityProvider);
                       ref.invalidate(usersProvider);
                     },
-                    child: ListView.separated(
-                      padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
-                      itemCount: filtered.length,
-                      separatorBuilder: (_, __) => const SizedBox(height: 8),
-                      itemBuilder: (_, i) => _ActivityTile(
-                        movement: filtered[i],
-                        user: userById[filtered[i].userId],
+                    child: PageContainer(
+                      child: ListView.separated(
+                        padding: const EdgeInsets.fromLTRB(16, 4, 16, 24),
+                        itemCount: filtered.length,
+                        separatorBuilder: (_, __) => const SizedBox(height: 8),
+                        itemBuilder: (_, i) => _ActivityTile(
+                          movement: filtered[i],
+                          user: userById[filtered[i].userId],
+                        ).entrance(index: i),
                       ),
                     ),
                   );
@@ -154,6 +158,8 @@ class _ActivityTile extends ConsumerWidget {
             : Icons.swap_horiz;
     final sign = movement.isEntrada ? '+' : movement.isSaida ? '-' : '↔';
     final when = DateTime.tryParse(movement.createdAt);
+    final personIconSize = context.isWide ? 20.0 : 16.0;
+    final movementIconSize = context.isWide ? 22.0 : 18.0;
 
     return Card(
       child: Padding(
@@ -163,7 +169,7 @@ class _ActivityTile extends ConsumerWidget {
           children: [
             Row(
               children: [
-                Icon(Icons.person_outline, size: 16, color: Theme.of(context).colorScheme.outline),
+                Icon(Icons.person_outline, size: personIconSize, color: Theme.of(context).colorScheme.outline),
                 const SizedBox(width: 6),
                 Expanded(
                   child: Text(
@@ -182,7 +188,7 @@ class _ActivityTile extends ConsumerWidget {
             const SizedBox(height: 8),
             Row(
               children: [
-                Icon(icon, size: 18, color: color),
+                Icon(icon, size: movementIconSize, color: color),
                 const SizedBox(width: 8),
                 Expanded(
                   child: Text(
@@ -229,30 +235,55 @@ class _PeopleTab extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final users = ref.watch(usersProvider);
+    // Em tela larga o botão vira uma ação inline no topo da lista em vez de
+    // FAB flutuante (padrão mobile) -- FAB só aparece no mobile.
+    final isWide = context.isWide;
 
     return Scaffold(
-      floatingActionButton: FloatingActionButton.extended(
-        onPressed: () => _showAddPersonDialog(context, ref),
-        icon: const Icon(Icons.person_add_alt_1),
-        label: const Text('Adicionar pessoa'),
-      ),
+      floatingActionButton: isWide
+          ? null
+          : FloatingActionButton.extended(
+              onPressed: () => _showAddPersonDialog(context, ref),
+              icon: const Icon(Icons.person_add_alt_1),
+              label: const Text('Adicionar pessoa'),
+            ),
       body: users.when(
         data: (userList) {
-          if (userList.isEmpty) {
-            return const EmptyState(
-              icon: Icons.people_outline,
-              title: 'Ninguém cadastrado ainda',
-              subtitle: 'Toca em "Adicionar pessoa" pra convidar alguém.',
-            );
-          }
-          return RefreshIndicator(
-            onRefresh: () async => ref.invalidate(usersProvider),
-            child: ListView.separated(
-              padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
-              itemCount: userList.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 8),
-              itemBuilder: (_, i) => _PersonTile(user: userList[i]),
-            ),
+          final list = userList.isEmpty
+              ? const EmptyState(
+                  icon: Icons.people_outline,
+                  title: 'Ninguém cadastrado ainda',
+                  subtitle: 'Toca em "Adicionar pessoa" pra convidar alguém.',
+                )
+              : RefreshIndicator(
+                  onRefresh: () async => ref.invalidate(usersProvider),
+                  child: PageContainer(
+                    child: ListView.separated(
+                      padding: const EdgeInsets.fromLTRB(16, 12, 16, 88),
+                      itemCount: userList.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (_, i) => _PersonTile(user: userList[i]).entrance(index: i),
+                    ),
+                  ),
+                );
+
+          if (!isWide) return list;
+
+          return Column(
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    onPressed: () => _showAddPersonDialog(context, ref),
+                    icon: const Icon(Icons.person_add_alt_1, size: 18),
+                    label: const Text('Adicionar pessoa'),
+                  ),
+                ),
+              ),
+              Expanded(child: list),
+            ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
