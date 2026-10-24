@@ -176,10 +176,20 @@ class AuthService {
   String _firebaseMessage(String code) => switch (code) {
     'user-not-found'    => 'E-mail não encontrado.',
     'wrong-password'    => 'Senha incorreta.',
+    // Projetos Firebase novos devolvem este no lugar dos dois acima
+    // (proteção contra descobrir quais e-mails existem).
+    'invalid-credential' ||
+    'invalid-login-credentials' => 'E-mail ou senha incorretos.',
     'invalid-email'     => 'E-mail inválido.',
     'user-disabled'     => 'Conta desativada.',
     'too-many-requests' => 'Muitas tentativas. Aguarde.',
-    _                   => 'Erro ao fazer login. Tente novamente.',
+    'network-request-failed' => 'Sem conexão com a internet.',
+    'popup-blocked'     => 'O navegador bloqueou a janela do Google. Libere pop-ups e tente de novo.',
+    // Endereço do site fora de Authentication > Settings > Authorized
+    // domains no Firebase Console.
+    'unauthorized-domain' => 'Este endereço não está autorizado no Firebase para login.',
+    'operation-not-allowed' => 'Esse tipo de login está desativado no Firebase.',
+    _                   => 'Erro ao fazer login ($code). Tente novamente.',
   };
 }
 
