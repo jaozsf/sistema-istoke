@@ -76,6 +76,15 @@ class Settings(BaseSettings):
     FIREBASE_CREDENTIALS_JSON: str = ""
     FIREBASE_PROJECT_ID: str = ""
 
+    # IA do assistente (só pra tirar dúvidas). AI_PROVIDER: "auto" usa o
+    # primeiro que tiver chave, nesta ordem: groq, gemini, anthropic.
+    # Groq e Gemini têm plano gratuito sem cartão (com limite diário).
+    AI_PROVIDER: str = "auto"
+    GROQ_API_KEY: str = ""      # console.groq.com/keys
+    GEMINI_API_KEY: str = ""    # aistudio.google.com/apikey
+    # Troca o modelo padrão do provedor escolhido (opcional)
+    AI_MODEL: str = ""
+
     # Anthropic
     ANTHROPIC_API_KEY: str = ""
     ANTHROPIC_MODEL: str = "claude-sonnet-5-5"

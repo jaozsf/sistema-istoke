@@ -1,13 +1,12 @@
 import unicodedata
-import anthropic
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
-from app.core.config import settings
 from app.repositories.stock_repository import StockRepository
 from app.repositories.movement_repository import MovementRepository
 from app.repositories.product_repository import ProductRepository
 from app.repositories.branch_repository import BranchRepository
 from app.ai.analytics import AnalyticsEngine
+from app.ai.llm import complete, LLMError
 
 
 async def build_company_context(company_id: str, db: AsyncSession) -> str:
@@ -31,15 +30,22 @@ async def build_company_context(company_id: str, db: AsyncSession) -> str:
         for p in products[:30]
     ) or "  Nenhum produto cadastrado."
 
+    pname = {p.id: p.name for p in products}
+    bname = {b.id: b.name for b in branches}
+
     low_lines = "\n".join(
-        f"  - Produto {ls.product_id} na filial {ls.branch_id}: {ls.quantity} unid (mín {ls.min_quantity})"
+        f"  - {pname.get(ls.product_id, ls.product_id)} na filial {bname.get(ls.branch_id, ls.branch_id)}: "
+        f"{ls.quantity} unid (mín {ls.min_quantity})"
         for ls in low_stock
     ) or "  Nenhum estoque crítico."
 
     mov_lines = "\n".join(
-        f"  - {m.type.upper()} | Produto {m.product_id} | Qty {m.quantity} | {m.created_at.strftime('%d/%m %H:%M')}"
+        f"  - {m.type.upper()} | {pname.get(m.product_id, m.product_id)} | Qtd {m.quantity} | "
+        f"{m.created_at.strftime('%d/%m %H:%M')}"
         for m in movements
     ) or "  Sem movimentações recentes."
+
+    order_lines = await _orders_context(company_id, db)
 
     return f"""
 DADOS DA EMPRESA (company_id: {company_id})
@@ -55,7 +61,52 @@ ESTOQUES CRÍTICOS ({len(low_stock)}):
 
 ÚLTIMAS MOVIMENTAÇÕES:
 {mov_lines}
+
+{order_lines}
 """.strip()
+
+
+async def _orders_context(company_id: str, db: AsyncSession) -> str:
+    """Pedidos por etapa + últimos pedidos, padrões de caixa e distribuidoras."""
+    from sqlalchemy import func
+    from app.models.order import Order
+    from app.models.partner import Customer, Distributor
+    from app.models.box_standard import BoxStandard
+    from app.models.product import Product
+
+    counts = dict((await db.execute(
+        select(Order.status, func.count()).where(Order.company_id == company_id).group_by(Order.status)
+    )).all())
+    recent = (await db.execute(
+        select(Order, Customer.name)
+        .join(Customer, Customer.id == Order.customer_id)
+        .where(Order.company_id == company_id)
+        .order_by(Order.created_at.desc()).limit(15)
+    )).all()
+    boxes = (await db.execute(
+        select(Product.name, BoxStandard.units_per_box)
+        .join(BoxStandard, BoxStandard.product_id == Product.id)
+        .where(Product.company_id == company_id)
+    )).all()
+    dists = (await db.execute(
+        select(Distributor.name).where(Distributor.company_id == company_id, Distributor.is_active == True)  # noqa: E712
+    )).scalars().all()
+
+    count_line = ", ".join(f"{k}: {v}" for k, v in counts.items()) or "nenhum pedido ainda"
+    recent_lines = "\n".join(
+        f"  - #{o.number:04d} | {cname} | {o.status} | {o.total_boxes} cx / {o.total_units} un"
+        for o, cname in recent
+    ) or "  Nenhum pedido."
+    box_lines = "\n".join(f"  - {n}: {u} un/caixa" for n, u in boxes) or "  Nenhum padrão cadastrado."
+    return f"""PEDIDOS POR ETAPA: {count_line}
+
+ÚLTIMOS PEDIDOS:
+{recent_lines}
+
+PADRÕES DE CAIXA:
+{box_lines}
+
+DISTRIBUIDORAS ATIVAS: {", ".join(dists) or "nenhuma"}"""
 
 
 def _norm(text: str) -> str:
@@ -144,29 +195,47 @@ async def _try_canned_answer(question: str, company_id: str, db: AsyncSession) -
 async def ask_assistant(question: str, company_id: str, db: AsyncSession) -> str:
     """
     Primeiro tenta responder com dados já calculados (sem custo de IA).
-    Só cai pro Claude se a pergunta não bater com nenhum padrão conhecido.
+    Só chama o modelo de IA se a pergunta não bater com nenhum padrão conhecido.
     """
     canned = await _try_canned_answer(question, company_id, db)
     if canned is not None:
         return canned
 
-    if not settings.ANTHROPIC_API_KEY:
-        return "Chave da API Anthropic não configurada. Defina ANTHROPIC_API_KEY no .env."
-
     context = await build_company_context(company_id, db)
+    system_prompt = f"""{SYSTEM_GUIDE}
 
-    system_prompt = f"""Você é o assistente IA do StockIQ, um ERP SaaS brasileiro.
-Você tem acesso aos dados reais da empresa abaixo e deve responder com análises precisas,
-diretas e acionáveis em português brasileiro. Use os dados para embasar cada resposta.
-Não invente dados que não estão no contexto.
+Use os dados reais da empresa abaixo para embasar as respostas sobre o negócio.
+Não invente números que não estão aqui; se faltar dado, diga o que falta.
 
 {context}"""
 
-    client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
-    message = await client.messages.create(
-        model=settings.ANTHROPIC_MODEL,
-        max_tokens=1024,
-        system=system_prompt,
-        messages=[{"role": "user", "content": question}],
-    )
-    return message.content[0].text
+    try:
+        return await complete(system_prompt, question)
+    except LLMError as exc:
+        return str(exc)
+
+
+# O que o assistente sabe sobre o próprio sistema -- para tirar dúvidas de
+# uso ("como faço um pedido?") sem precisar de manual.
+SYSTEM_GUIDE = """Você é o assistente do StockIQ, ERP brasileiro para fábricas e distribuidoras de copos.
+Responda em português do Brasil, curto e direto, em passos numerados quando for "como faço".
+
+COMO O SISTEMA FUNCIONA
+- Perfis: admin (dono, faz tudo), gerente, vendedor, produção, expedição, operador.
+- Produtos: modelos de copo com SKU, preço de venda, custo e estoque mínimo. QR Code por produto.
+- Estoque: entrada, saída, transferência entre filiais e ajuste (só admin). Alerta quando cai abaixo do mínimo.
+- Padrão de caixa (Gestão > Padrões de caixa, só admin): unidades por caixa, medidas e peso de cada modelo.
+  Produto sem padrão não pode ser pedido.
+- Distribuidoras (Gestão > Distribuidoras, só admin). O vendedor escolhe com o cliente em cada pedido.
+- Pedido: vendedor cria em Pedidos > Novo pedido, escolhe cliente, distribuidora e copos EM CAIXAS,
+  marca arte e/ou borda se for personalizado e toca em "Enviar à fábrica".
+- Etapas: Enviado -> Em produção (só se tiver arte/borda; a produção inicia) -> Em separação
+  (expedição separa) -> Conferido (expedição conta caixa a caixa; só libera quando bate) ->
+  Despachado (entregue à distribuidora com NF). O estoque baixa quando o pedido sai de "Enviado".
+- Cancelar: gerente/admin em qualquer etapa aberta; vendedor só em "Enviado". Cancelar devolve o estoque.
+- Arte custa R$ 2,00 e borda R$ 1,00 a mais por unidade. Copo ecológico não aceita borda (derrete).
+- Equipe: admin cadastra pessoas pelo e-mail em Gestão > Equipe e setores e escolhe o setor.
+- Tema claro/escuro em Gestão ou Conta > Aparência. Etiquetas QR em PDF na tela de Produtos.
+
+Se a pergunta não for sobre o StockIQ, o negócio da empresa ou gestão de estoque/vendas,
+responda brevemente e volte ao assunto. Nunca peça nem revele senhas ou chaves."""
