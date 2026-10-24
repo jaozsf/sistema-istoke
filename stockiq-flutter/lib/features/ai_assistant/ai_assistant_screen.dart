@@ -115,7 +115,7 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 const Text('Assistente IA', style: TextStyle(fontSize: 15)),
-                Text('Powered by Claude', style: theme.textTheme.bodySmall?.copyWith(fontSize: 11)),
+                Text('IA gratuita · tira dúvidas do sistema', style: theme.textTheme.bodySmall?.copyWith(fontSize: 11)),
               ],
             ),
           ],
@@ -147,7 +147,8 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
                       itemBuilder: (_, i) {
                         final msg = messages[i];
                         return _MessageBubble(
-                          text: msg.text,
+                          // Modelo às vezes manda markdown (**negrito**); o balão é texto puro
+                          text: msg.text.replaceAll('**', '').replaceAll('__', ''),
                           isUser: msg.role == 'user',
                           isLoading: msg.text == '...',
                         ).entrance(index: i);
@@ -181,7 +182,7 @@ class _EmptyAI extends StatelessWidget {
             ),
             const SizedBox(height: 8),
             Text(
-              'Tenho acesso aos dados reais da sua empresa.\nPergunte sobre estoque, finanças e filiais.',
+              'Conheço o StockIQ e os dados da sua empresa.\nPergunte como fazer algo ou sobre pedidos e estoque.',
               style: Theme.of(context).textTheme.bodySmall,
               textAlign: TextAlign.center,
             ),
@@ -362,7 +363,7 @@ class _InputBar extends StatelessWidget {
                 textInputAction: TextInputAction.send,
                 onSubmitted: (_) => onSend(),
                 decoration: const InputDecoration(
-                  hintText: 'Pergunte sobre estoque, filiais, finanças...',
+                  hintText: 'Pergunte como fazer algo no sistema...',
                   contentPadding: EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 ),
               ),

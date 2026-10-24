@@ -9,7 +9,9 @@ import '../../core/theme/app_theme.dart';
 import '../../core/utils/responsive.dart';
 import '../../shared/models/logistics_models.dart';
 import '../../shared/models/user_model.dart';
+import '../../shared/widgets/app_widgets.dart';
 import '../../shared/widgets/ios_widgets.dart';
+import 'icon_picker_sheet.dart';
 
 /// Central do admin (dono): visão da esteira de pedidos + todos os
 /// cadastros que alimentam o fluxo, no formato "Ajustes" do iPhone.
@@ -92,6 +94,12 @@ class AdminHubScreen extends ConsumerWidget {
           child: IosSection(
             header: 'Aparência',
             children: [
+              IosTile(
+                leading: const AppLogo(size: 30),
+                title: 'Ícone do app',
+                subtitle: 'Desenhos ou emojis de estoque, na cor que quiser',
+                onTap: () => showIconPicker(context),
+              ),
               Padding(
                 padding: const EdgeInsets.all(12),
                 child: CupertinoSlidingSegmentedControl<ThemeMode>(

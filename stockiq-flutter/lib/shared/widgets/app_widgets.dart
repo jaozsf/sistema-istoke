@@ -1,4 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/providers/app_icon_provider.dart';
+import 'app_icons.dart';
 import 'package:shimmer/shimmer.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/responsive.dart';
@@ -36,7 +39,7 @@ class PageContainer extends StatelessWidget {
 /// [background] e [foreground] controlam a cor — por padrão roxo com
 /// traço branco. Use [AppLogo.mono] pra versão preta ou branca sem fundo
 /// (favicon, impressão, superfícies escuras/claras).
-class AppLogo extends StatelessWidget {
+class AppLogo extends ConsumerWidget {
   final double size;
   final Color background;
   final Color foreground;
@@ -55,7 +58,12 @@ class AppLogo extends StatelessWidget {
         foreground = color;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    // Logo padrão (fundo da marca) segue o ícone que a pessoa escolheu em
+    // Aparência; a versão .mono (impressão, superfícies) fica fixa.
+    if (background == AppTheme.primary && foreground == Colors.white) {
+      return AppIconView(choice: ref.watch(appIconProvider), size: size);
+    }
     return Container(
       width: size,
       height: size,

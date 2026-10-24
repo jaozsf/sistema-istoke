@@ -253,6 +253,7 @@ Não invente números que não estão aqui; se faltar dado, diga o que falta.
 # uso ("como faço um pedido?") sem precisar de manual.
 SYSTEM_GUIDE = """Você é o assistente do StockIQ, ERP brasileiro para fábricas e distribuidoras de copos.
 Responda em português do Brasil, curto e direto, em passos numerados quando for "como faço".
+Escreva texto simples, sem markdown: nada de **, # ou tabelas; listas só com "1." ou "-".
 
 COMO O SISTEMA FUNCIONA
 - Perfis: admin (dono, faz tudo), gerente, vendedor, produção, expedição, operador.
