@@ -7,6 +7,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'theme/app_theme.dart';
 import 'utils/responsive.dart';
 import '../shared/widgets/app_widgets.dart';
+import '../shared/widgets/update_notice.dart';
 import '../features/auth/login_screen.dart';
 import '../features/dashboard/dashboard_screen.dart';
 import '../features/products/products_screen.dart';
@@ -72,7 +73,7 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // Shell com bottom navigation
       ShellRoute(
-        builder: (context, state, child) => MainShell(child: child),
+        builder: (context, state, child) => UpdateGate(child: MainShell(child: child)),
         routes: [
           GoRoute(path: '/dashboard', builder: (_, __) => const DashboardScreen()),
           GoRoute(

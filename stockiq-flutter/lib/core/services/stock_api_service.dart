@@ -67,7 +67,9 @@ class StockApiService {
 
   Future<List<ProductModel>> getProducts({String? q}) async {
     try {
-      final resp = await _dio.get('/products', queryParameters: q != null ? {'q': q} : null);
+      // Sem limit o backend corta em 100 -- produto 101+ sumia do app.
+      // 500 é o teto da API; catálogo maior que isso pede paginação.
+      final resp = await _dio.get('/products', queryParameters: q != null ? {'q': q} : {'limit': 500});
       return (resp.data as List).map((e) => ProductModel.fromJson(e)).toList();
     } on DioException catch (e) {
       throw parseApiError(e);

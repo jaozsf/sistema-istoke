@@ -1,4 +1,5 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'cache_for.dart';
 import '../../shared/models/product_model.dart';
 import '../../shared/models/stock_model.dart';
 import '../../shared/models/movement_model.dart';
@@ -20,17 +21,23 @@ final teamActivityProvider = FutureProvider<List<MovementModel>>(
 
 // ── Produtos ──────────────────────────────────────────────────────────────────
 
-final productsProvider = FutureProvider.family<List<ProductModel>, String?>(
-  (ref, query) => _api.getProducts(q: query),
-);
+// autoDispose em toda family: sem isso cada busca/produto/QR aberto ficava
+// na memória até fechar o app (QR é imagem base64). cacheFor segura um
+// pouco pra voltar de tela não refazer a requisição.
+final productsProvider = FutureProvider.autoDispose.family<List<ProductModel>, String?>((ref, query) {
+  ref.cacheFor(const Duration(minutes: 5));
+  return _api.getProducts(q: query);
+});
 
-final productDetailProvider = FutureProvider.family<ProductModel, String>(
-  (ref, id) => _api.getProduct(id),
-);
+final productDetailProvider = FutureProvider.autoDispose.family<ProductModel, String>((ref, id) {
+  ref.cacheFor(const Duration(minutes: 5));
+  return _api.getProduct(id);
+});
 
-final productQRProvider = FutureProvider.family<String, String>(
-  (ref, productId) => _api.getProductQR(productId),
-);
+final productQRProvider = FutureProvider.autoDispose.family<String, String>((ref, productId) {
+  ref.cacheFor(const Duration(minutes: 1));
+  return _api.getProductQR(productId);
+});
 
 // ── Estoque ───────────────────────────────────────────────────────────────────
 
@@ -38,9 +45,10 @@ final lowStockProvider = FutureProvider<List<StockModel>>(
   (_) => _api.getLowStock(),
 );
 
-final branchStockProvider = FutureProvider.family<List<StockModel>, String>(
-  (ref, branchId) => _api.getBranchStock(branchId),
-);
+final branchStockProvider = FutureProvider.autoDispose.family<List<StockModel>, String>((ref, branchId) {
+  ref.cacheFor(const Duration(minutes: 2));
+  return _api.getBranchStock(branchId);
+});
 
 // ── Movimentações ─────────────────────────────────────────────────────────────
 
