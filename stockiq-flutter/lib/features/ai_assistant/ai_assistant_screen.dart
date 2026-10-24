@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../core/providers/auth_provider.dart';
 import '../../core/providers/stock_providers.dart';
+import '../../shared/models/user_model.dart';
 import '../../core/theme/app_theme.dart';
 import '../../core/utils/animations.dart';
 import '../../shared/widgets/app_widgets.dart';
@@ -17,13 +19,46 @@ class _AiAssistantScreenState extends ConsumerState<AiAssistantScreen> {
   final _scrollCtrl = ScrollController();
   bool _sending     = false;
 
-  static const _suggestions = [
-    'Qual filial tem mais estoque parado?',
-    'Onde estou perdendo dinheiro?',
-    'O que devo comprar urgente?',
-    'Analise a performance geral da empresa',
-    'Quais produtos têm melhor margem?',
-  ];
+  // Sugestões pelo setor de quem abre -- cada um vê dúvidas do próprio trabalho
+  static const _bySector = {
+    'manager': [
+      'Qual filial tem mais estoque parado?',
+      'Onde estou perdendo dinheiro?',
+      'O que devo comprar urgente?',
+      'Analise a performance geral da empresa',
+      'Quais produtos têm melhor margem?',
+    ],
+    'seller': [
+      'Como faço um pedido novo?',
+      'Como escolho a distribuidora?',
+      'Até quando posso cancelar um pedido?',
+      'Como funciona arte e borda?',
+      'Em que etapa estão meus pedidos?',
+    ],
+    'production': [
+      'O que tenho na fila da produção?',
+      'Qual a ordem: arte ou borda?',
+      'Quando o estoque é baixado?',
+      'Como envio o pedido pra separação?',
+    ],
+    'shipping': [
+      'Como faço a conferência de caixas?',
+      'O que fazer se a contagem não bater?',
+      'Como despacho pra distribuidora?',
+      'Quantas unidades vêm em cada caixa?',
+    ],
+    'operator': [
+      'Como registro uma entrada de estoque?',
+      'Como uso o leitor de QR Code?',
+      'Quais produtos estão com estoque baixo?',
+    ],
+  };
+
+  List<String> get _suggestions {
+    final user = ref.read(currentUserProvider);
+    final key = (user?.isManager ?? false) ? 'manager' : user?.role;
+    return _bySector[key] ?? _bySector['operator']!;
+  }
 
   @override
   void dispose() {

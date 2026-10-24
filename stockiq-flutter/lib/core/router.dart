@@ -33,7 +33,9 @@ import 'providers/auth_provider.dart';
 
 // Rotas que só admin/manager pode ver — outros setores são jogados pra
 // tela inicial do próprio setor.
-const _managerOnlyRoutes = ['/dashboard', '/ai', '/team-activity'];
+// /ai fica aberto a todos: o backend tira custo/margem do contexto de quem
+// não é gestão.
+const _managerOnlyRoutes = ['/dashboard', '/team-activity'];
 
 /// Tela inicial de cada setor.
 String homeFor(UserModel? u) {

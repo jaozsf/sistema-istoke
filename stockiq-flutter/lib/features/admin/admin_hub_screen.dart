@@ -76,8 +76,13 @@ class AdminHubScreen extends ConsumerWidget {
           child: IosSection(
             header: 'Ferramentas',
             children: [
-              if (isManager)
-                IosTile(icon: CupertinoIcons.sparkles, iconColor: const Color(0xFFE0569B), title: 'Assistente IA', onTap: () => context.push('/ai')),
+              IosTile(
+                icon: CupertinoIcons.sparkles,
+                iconColor: const Color(0xFFE0569B),
+                title: 'Assistente IA',
+                subtitle: 'Tire dúvidas sobre o sistema e o seu trabalho',
+                onTap: () => context.push('/ai'),
+              ),
               IosTile(icon: CupertinoIcons.qrcode_viewfinder, iconColor: AppTheme.abyss, title: 'Leitor de QR Code', onTap: () => context.push('/qr')),
               IosTile(icon: CupertinoIcons.bell_fill, iconColor: AppTheme.danger, title: 'Notificações', onTap: () => context.push('/notifications')),
             ],

@@ -221,17 +221,8 @@ async def ask(
     Contexto inclui analytics em tempo real da empresa.
     Suporta histórico multi-turn.
     """
-    data   = await _load_data(current_user.company_id, db)
-    answer = await ask_assistant(
-        question=payload.question,
-        company_id=data["company_id"],
-        company_name=data["company_name"],
-        products=data["products"],
-        branches=data["branches"],
-        stocks=data["stocks"],
-        movements=data["movements"],
-        history=payload.history,
-    )
+    # Mesmo assistente do /ai/ask (antes chamava uma assinatura antiga e quebrava)
+    answer = await ask_assistant(payload.question, current_user, db)
     return AskResponse(answer=answer, company_id=current_user.company_id)
 
 

@@ -72,3 +72,46 @@ async def test_limite_gratis_vira_mensagem_amigavel(monkeypatch):
     _patch(monkeypatch, 429, {"error": {"message": "rate limit"}}, [])
     with pytest.raises(llm.LLMError, match="Limite gratuito"):
         await llm.complete("sistema", "oi")
+
+
+# ── Contexto por setor ────────────────────────────────────────────────────────
+
+import uuid  # noqa: E402
+import pytest_asyncio  # noqa: E402
+from app.ai.assistant import build_company_context, ask_assistant  # noqa: E402
+from app.models.company import Company  # noqa: E402
+from app.models.branch import Branch  # noqa: E402
+from app.models.user import User, UserRole  # noqa: E402
+from app.models.product import Product  # noqa: E402
+from tests.test_products import setup_db, db  # noqa: E402,F401 -- fixtures compartilhadas
+
+
+@pytest_asyncio.fixture
+async def company(db):
+    cid, bid = str(uuid.uuid4()), str(uuid.uuid4())
+    users = {
+        r: User(id=str(uuid.uuid4()), email=f"{r}@x.com", full_name=r.title(), role=getattr(UserRole, r),
+                company_id=cid, branch_id=bid)
+        for r in ("admin", "seller", "shipping")
+    }
+    db.add_all([Company(id=cid, name="Copos"), Branch(id=bid, name="Matriz", company_id=cid), *users.values(),
+                Product(sku="C1", name="Copo Twister", sale_price=2.8, cost_price=1.1, company_id=cid)])
+    await db.commit()
+    return users
+
+
+@pytest.mark.asyncio
+async def test_custo_e_margem_so_para_gestao(db, company):
+    gestao = await build_company_context(company["admin"].company_id, db, company["admin"])
+    vendedor = await build_company_context(company["seller"].company_id, db, company["seller"])
+    assert "Custo" in gestao and "Margem" in gestao
+    assert "Custo" not in vendedor and "Margem" not in vendedor
+    assert "Copo Twister" in vendedor
+
+
+@pytest.mark.asyncio
+async def test_todos_os_setores_recebem_resposta_sem_erro(db, company):
+    # Sem chave de IA: resposta explicativa, nunca exceção
+    for user in company.values():
+        answer = await ask_assistant("como faço um pedido?", user, db)
+        assert "GROQ_API_KEY" in answer

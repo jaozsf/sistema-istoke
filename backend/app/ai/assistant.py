@@ -9,7 +9,21 @@ from app.ai.analytics import AnalyticsEngine
 from app.ai.llm import complete, LLMError
 
 
-async def build_company_context(company_id: str, db: AsyncSession) -> str:
+MANAGER_ROLES = ("admin", "manager")
+
+ROLE_LABELS = {
+    "admin": "admin (dono)", "manager": "gerente", "seller": "vendedor",
+    "production": "produção", "shipping": "expedição", "operator": "operador",
+}
+
+
+async def build_company_context(company_id: str, db: AsyncSession, user=None) -> str:
+    """
+    Resumo dos dados da empresa para o prompt. Custo, margem e pedidos de
+    outros vendedores só entram para admin/gerente -- o assistente é aberto a
+    todos os setores e não pode vazar o que a tela da pessoa não mostra.
+    """
+    full_access = user is None or user.role in MANAGER_ROLES
     """Monta um resumo textual dos dados da empresa para o prompt da IA."""
     prod_repo   = ProductRepository(db)
     stock_repo  = StockRepository(db)
@@ -26,7 +40,8 @@ async def build_company_context(company_id: str, db: AsyncSession) -> str:
     ) or "  Nenhuma filial cadastrada."
 
     product_lines = "\n".join(
-        f"  - [{p.sku}] {p.name} | Preço: R${p.sale_price} | Custo: R${p.cost_price} | Margem: {p.margin_percent}%"
+        f"  - [{p.sku}] {p.name} | Preço: R${p.sale_price}"
+        + (f" | Custo: R${p.cost_price} | Margem: {p.margin_percent}%" if full_access else "")
         for p in products[:30]
     ) or "  Nenhum produto cadastrado."
 
@@ -45,7 +60,8 @@ async def build_company_context(company_id: str, db: AsyncSession) -> str:
         for m in movements
     ) or "  Sem movimentações recentes."
 
-    order_lines = await _orders_context(company_id, db)
+    seller_id = user.id if user is not None and user.role == "seller" else None
+    order_lines = await _orders_context(company_id, db, seller_id)
 
     return f"""
 DADOS DA EMPRESA (company_id: {company_id})
@@ -66,7 +82,7 @@ ESTOQUES CRÍTICOS ({len(low_stock)}):
 """.strip()
 
 
-async def _orders_context(company_id: str, db: AsyncSession) -> str:
+async def _orders_context(company_id: str, db: AsyncSession, seller_id: str | None = None) -> str:
     """Pedidos por etapa + últimos pedidos, padrões de caixa e distribuidoras."""
     from sqlalchemy import func
     from app.models.order import Order
@@ -74,13 +90,17 @@ async def _orders_context(company_id: str, db: AsyncSession) -> str:
     from app.models.box_standard import BoxStandard
     from app.models.product import Product
 
+    # Vendedor só enxerga a própria carteira, igual na tela de pedidos
+    scope = [Order.company_id == company_id]
+    if seller_id:
+        scope.append(Order.seller_id == seller_id)
     counts = dict((await db.execute(
-        select(Order.status, func.count()).where(Order.company_id == company_id).group_by(Order.status)
+        select(Order.status, func.count()).where(*scope).group_by(Order.status)
     )).all())
     recent = (await db.execute(
         select(Order, Customer.name)
         .join(Customer, Customer.id == Order.customer_id)
-        .where(Order.company_id == company_id)
+        .where(*scope)
         .order_by(Order.created_at.desc()).limit(15)
     )).all()
     boxes = (await db.execute(
@@ -168,7 +188,9 @@ _CANNED_TOPICS = [
 ]
 
 
-async def _try_canned_answer(question: str, company_id: str, db: AsyncSession) -> str | None:
+async def _try_canned_answer(
+    question: str, company_id: str, db: AsyncSession, full_access: bool = True,
+) -> str | None:
     q = _norm(question)
     categories: set[str] | None = None
     for matches, cats in _CANNED_TOPICS:
@@ -176,6 +198,9 @@ async def _try_canned_answer(question: str, company_id: str, db: AsyncSession) -
             categories = set(cats)
             break
     if categories is None:
+        return None
+    # Alertas de dinheiro/produto citam custo e margem: só para gestão
+    if not full_access and categories & {"finance", "product"}:
         return None
 
     engine = await _load_analytics_engine(company_id, db)
@@ -192,17 +217,26 @@ async def _try_canned_answer(question: str, company_id: str, db: AsyncSession) -
     return "\n".join(lines)
 
 
-async def ask_assistant(question: str, company_id: str, db: AsyncSession) -> str:
+async def ask_assistant(question: str, user, db: AsyncSession) -> str:
     """
     Primeiro tenta responder com dados já calculados (sem custo de IA).
     Só chama o modelo de IA se a pergunta não bater com nenhum padrão conhecido.
     """
-    canned = await _try_canned_answer(question, company_id, db)
+    company_id = user.company_id
+    full_access = user.role in MANAGER_ROLES
+    canned = await _try_canned_answer(question, company_id, db, full_access)
     if canned is not None:
         return canned
 
-    context = await build_company_context(company_id, db)
+    context = await build_company_context(company_id, db, user)
+    role = ROLE_LABELS.get(user.role, user.role)
+    restriction = "" if full_access else (
+        "\nQuem pergunta não é da gestão: não fale de custo, margem, lucro nem dados financeiros; "
+        "se pedirem, diga que só admin/gerente vê isso."
+    )
     system_prompt = f"""{SYSTEM_GUIDE}
+
+QUEM PERGUNTA: {user.full_name}, setor {role}. Explique o passo a passo do setor dele quando fizer sentido.{restriction}
 
 Use os dados reais da empresa abaixo para embasar as respostas sobre o negócio.
 Não invente números que não estão aqui; se faltar dado, diga o que falta.

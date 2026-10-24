@@ -24,7 +24,8 @@ async def ask(
 ):
     """
     Envia uma pergunta ao assistente IA com contexto real da empresa do usuário.
+    Aberto a todos os setores; custo/margem só entram no contexto para gestão.
     Exemplo: "Qual filial tem mais estoque parado?"
     """
-    answer = await ask_assistant(payload.question, current_user.company_id, db)
+    answer = await ask_assistant(payload.question, current_user, db)
     return AskResponse(answer=answer)

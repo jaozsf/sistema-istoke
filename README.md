@@ -72,6 +72,8 @@ stockiq-flutter/lib/
 
 O app só mostra as abas de cada setor; a permissão de verdade é checada na API.
 
+O **Assistente IA** (Gestão/Conta → Assistente IA) é aberto a todos os setores para tirar dúvidas. Usa IA gratuita (Groq ou Gemini — variável `GROQ_API_KEY` ou `GEMINI_API_KEY`); custo, margem e pedidos de outros vendedores só entram no contexto de admin/gerente.
+
 ## Fluxo do pedido
 
 ```
@@ -136,7 +138,8 @@ Variáveis em Vercel → Settings → Environment Variables:
 | `FIREBASE_CREDENTIALS_JSON` | Sim | Conteúdo inteiro do JSON da conta de serviço |
 | `ALLOWED_ORIGINS` | Web | JSON (`["https://..."]`) ou lista separada por vírgula |
 | `DEBUG` | Não | `False` em produção |
-| `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` | Não | Assistente de IA para perguntas livres |
+| `GROQ_API_KEY` ou `GEMINI_API_KEY` | Não | IA gratuita do assistente (console.groq.com/keys ou aistudio.google.com/apikey) |
+| `ANTHROPIC_API_KEY` | Não | Alternativa paga (Claude) |
 
 Saúde: `GET /health` (app) e `GET /health/db` (banco).
 
