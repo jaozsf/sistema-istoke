@@ -268,7 +268,7 @@ A API roda na Vercel em modo serverless (sobe instâncias sob demanda), o banco 
 
 | Serviço | Papel | Observação |
 | --- | --- | --- |
-| Vercel | Hospeda a API (FastAPI) | Projeto `backend`; variáveis em Settings → Environment Variables |
+| Vercel | Hospeda a API (FastAPI) e o app web, no mesmo domínio | Projeto `backend`; variáveis em Settings → Environment Variables |
 | Neon | PostgreSQL gerenciado | Conexão pelo pooler (PgBouncer); dorme quando ocioso |
 | Firebase | Login e notificações push | Chave da conta de serviço na variável FIREBASE_CREDENTIALS_JSON |
 | GitHub | Código-fonte | Repositório sistema-istoke, branch `main` |
@@ -287,7 +287,7 @@ A API roda na Vercel em modo serverless (sobe instâncias sob demanda), o banco 
 **Como publicar**
 
 1. API: na pasta `backend`, rodar `vercel --prod` (tabelas novas são criadas na subida).
-2. App web: `flutter build web` e publicar a pasta `build/web` em hospedagem estática.
+2. App web: `./scripts/publicar.sh` gera o build web, copia para `backend/public` e publica junto da API, no mesmo endereço.
 3. Android: `flutter build apk --release` (ou `appbundle` para a Play Store).
 4. iPhone: `flutter build ipa` num Mac com Xcode e conta Apple Developer.
 5. A cada versão: subir `appVersion` e `whatsNew` em `update_service.dart` e o `version` do `pubspec.yaml` — o app mostra "Olá, temos uma nova atualização para você :)".
@@ -434,7 +434,7 @@ As próximas entregas priorizam o que trava a adoção por mais empresas: public
 
 **Roadmap sugerido**
 
-1. Publicar o app web e gerar o APK com chave de release própria; enviar iPhone ao TestFlight.
+1. Gerar o APK com chave de release própria e enviar o iPhone ao TestFlight (o app web já está publicado).
 2. Paginação de produtos e pedidos (catálogo acima de 500 itens).
 3. Limite de requisições por usuário na API e verificação em duas etapas para admins.
 4. Leitura de QR Code na conferência (conta a caixa ao escanear a etiqueta).

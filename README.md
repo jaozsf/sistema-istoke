@@ -4,8 +4,8 @@ ERP para fábricas e distribuidoras de copos: estoque, pedidos (vendedor →
 produção → expedição → distribuidora), financeiro e IA, num app só para
 iPhone, Android, web e desktop.
 
-**Versão 1.1.0** · API em produção: `https://backend-livid-one-99.vercel.app`
-(docs em `/docs`) · Dossiê completo do sistema (arquitetura, segurança,
+**Versão 1.1.0** · App web e API no mesmo endereço:
+`https://backend-livid-one-99.vercel.app` (API em `/api/v1`, docs em `/docs`) · Dossiê completo do sistema (arquitetura, segurança,
 testes, guias de usuário, implantação e planejamento):
 [`docs/dossie/DOSSIE_STOCKIQ.md`](docs/dossie/DOSSIE_STOCKIQ.md)
 
@@ -114,12 +114,18 @@ alembic upgrade head
 uvicorn app.main:app --reload
 ```
 
-## Backend — produção (Vercel + Neon)
+## Produção (Vercel + Neon) — web e API no mesmo projeto
 
 ```bash
-cd backend
-vercel --prod
+./scripts/publicar.sh            # build web → backend/public + vercel --prod
+./scripts/publicar.sh preview    # deploy de teste
+./scripts/publicar.sh apk        # APK Android de release
 ```
+
+`backend/vercel.json` manda `/api/*`, `/health`, `/docs` para a API (Python)
+e todo o resto para o app web estático em `backend/public/` (gerado, fora do
+Git). A API exclui `public/` do pacote Python para não inflar o cold start.
+Como app e API ficam na mesma origem, o navegador não precisa de CORS.
 
 Variáveis em Vercel → Settings → Environment Variables:
 
@@ -209,7 +215,8 @@ Teste de carga em produção (24/10/2026): 6.750 requisições até 300 simultâ
 - [x] Padrão de caixa, distribuidoras, clientes, setores
 - [x] Visual iOS (claro/escuro), sessão persistente, aviso de atualização, 404
 - [x] API estável na Vercel + teste de carga
-- [ ] Publicar app web e APK com chave de release; TestFlight
+- [x] App web publicado junto da API
+- [ ] APK com chave de release; TestFlight
 - [ ] Paginação acima de 500 produtos; rate limit na API
 - [ ] QR Code na conferência; etiqueta de volume da carga
 - [ ] Tela de previsão de demanda (`/analytics/forecast` já existe)
