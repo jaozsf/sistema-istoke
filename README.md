@@ -1,8 +1,16 @@
 # StockIQ — FastAPI + PostgreSQL + Firebase + Flutter
 
-ERP SaaS com controle de estoque, financeiro e IA integrada. Repositório
-tem dois projetos: `backend/` (API) e `stockiq-flutter/` (app Flutter,
-roda em web/Android/iOS/desktop).
+ERP para fábricas e distribuidoras de copos: estoque, pedidos (vendedor →
+produção → expedição → distribuidora), financeiro e IA, num app só para
+iPhone, Android, web e desktop.
+
+**Versão 1.1.0** · API em produção: `https://backend-livid-one-99.vercel.app`
+(docs em `/docs`) · Dossiê completo do sistema (arquitetura, segurança,
+testes, guias de usuário, implantação e planejamento):
+[`docs/dossie/DOSSIE_STOCKIQ.md`](docs/dossie/DOSSIE_STOCKIQ.md)
+
+O repositório tem dois projetos: `backend/` (API Python) e
+`stockiq-flutter/` (app Flutter/Dart).
 
 ---
 
@@ -10,14 +18,16 @@ roda em web/Android/iOS/desktop).
 
 | Camada | Tecnologia |
 |---|---|
-| API | FastAPI 0.111 + Uvicorn |
-| Banco | PostgreSQL 16 + SQLAlchemy 2 (async) |
-| Migrações | Alembic |
-| Auth | Firebase Auth (email/senha + Google) + JWT interno (python-jose) |
-| IA | Respostas padrão sem custo (dados reais) + Anthropic Claude opcional pra perguntas livres |
-| QR Code | qrcode + Pillow + reportlab (PDF de etiquetas) |
-| Frontend | Flutter (Riverpod + go_router) |
-| Container | Docker + Docker Compose |
+| API | FastAPI 0.115 (Python 3.12) |
+| Banco | PostgreSQL 16 (Neon em produção) + SQLAlchemy 2 async + asyncpg |
+| Migrações | Alembic (o servidor também cria tabelas novas na subida) |
+| Auth | Firebase Auth (e-mail/senha + Google) + JWT interno de 7 dias, renovado sozinho pelo app |
+| Push | Firebase Cloud Messaging |
+| IA | Respostas prontas com dados reais + Anthropic Claude opcional |
+| Relatórios | reportlab + qrcode + Pillow (PDF executivo, etiquetas QR) |
+| App | Flutter 3.41 / Dart 3.11, Riverpod, go_router, Dio — visual iOS, paleta Lagoon |
+| Hospedagem | Vercel (serverless) |
+| Testes | pytest, flutter_test |
 
 ---
 
@@ -26,299 +36,180 @@ roda em web/Android/iOS/desktop).
 ```
 backend/
 ├── app/
-│   ├── core/          config, database, firebase, security (JWT + RBAC)
-│   ├── models/        ORM: Company, Branch, User, Product, Stock, Movement, Finance, Log
-│   ├── schemas/       Pydantic v2: request/response bodies
-│   ├── repositories/  Acesso ao banco (BaseRepository + específicos)
-│   ├── services/      Regras de negócio (auth, product, stock, company, user)
-│   ├── controllers/   Routers FastAPI (endpoints HTTP)
-│   ├── ai/            Assistente (respostas padrão + Claude opcional)
-│   ├── reports/        PDF (relatório executivo, etiquetas QR)
-│   └── utils/         seed.py alternativo, qr_code helpers
-└── seed.py             Seed principal (empresa + filial + usuário + produtos demo)
+│   ├── core/          config (normaliza URL da Neon), banco, Firebase, JWT + RBAC, fuso BR
+│   ├── models/        Company, Branch, User, Product, Stock, Movement, Finance, Log,
+│   │                  DeviceToken, BoxStandard, Distributor, Customer, Order(+Item, Event)
+│   ├── schemas/       Pydantic v2
+│   ├── repositories/  acesso ao banco
+│   ├── services/      regras: estoque, financeiro, pedidos/logística, push, auth
+│   ├── controllers/   rotas HTTP (logistics_controller = pedidos, caixas, clientes, distribuidoras)
+│   ├── ai/  reports/
+├── alembic/versions/  0001 inicial · 0002 push · 0003 pedidos e setores
+├── tests/             test_products.py, test_orders.py
+├── requirements.txt       runtime (o que a Vercel instala — manter enxuto)
+└── requirements-dev.txt   + pytest, alembic, aiosqlite, psycopg2
 
-stockiq-flutter/
-├── lib/
-│   ├── core/           config, providers, services (API, auth, notificações)
-│   ├── features/       telas (auth, dashboard, produtos, estoque, qr, ia)
-│   └── shared/         models (freezed) e widgets reusáveis
-└── web/                 suporte a Flutter Web (gerado por `flutter create . --platforms=web`)
+stockiq-flutter/lib/
+├── core/       tema Lagoon, rotas por setor, providers, API + renovação de sessão,
+│               aviso de atualização (update_service.dart)
+├── features/   auth, dashboard, products, stock, qr, orders, admin, team,
+│               ai_assistant, notifications, errors (404)
+└── shared/     modelos e componentes (ios_widgets.dart: lista agrupada, título grande, caixa 3D)
 ```
 
 ---
 
-## Backend — Setup com Docker Compose (recomendado)
+## Perfis (RBAC)
 
-### 1. Clone
+| Role | Setor | Pode |
+|---|---|---|
+| `admin` | Dono | Tudo, incluindo equipe, padrões de caixa e distribuidoras |
+| `manager` | Gerente | Operação inteira (pedidos, estoque, produtos, painel, IA); avança/cancela qualquer pedido |
+| `seller` | Vendedor | Clientes e pedidos próprios; escolhe a distribuidora com o cliente |
+| `production` | Produção | Fila de pedidos com arte/borda; iniciar produção e enviar para separação |
+| `shipping` | Expedição | Separação, conferência caixa a caixa, despacho com NF |
+| `operator` | Operador | Produtos, estoque e QR |
+
+O app só mostra as abas de cada setor; a permissão de verdade é checada na API.
+
+## Fluxo do pedido
+
+```
+enviado ──(com arte/borda)──► em_producao ──► em_separacao ──► conferido ──► despachado
+   └────────(sem arte/borda)──────────────────────┘     ▲            │
+                                                         └─ reabrir ──┘
+cancelado: gerente/admin em qualquer etapa aberta; vendedor só em "enviado"
+```
+
+- O vendedor pede **em caixas**; o padrão de caixa do modelo converte em unidades.
+- O estoque baixa quando o pedido sai de `enviado` (com receita e custo no financeiro);
+  cancelar devolve o estoque e estorna o financeiro.
+- `conferido` só libera quando todas as caixas foram contadas; `despachado` exige distribuidora.
+- Cada mudança grava um evento (quem, de qual etapa para qual) e manda push ao próximo setor.
+
+---
+
+## Backend — local com Docker Compose
 
 ```bash
 git clone https://github.com/jaozsf/sistema-istoke.git
 cd sistema-istoke/backend
-```
-
-### 2. Firebase
-
-1. Acesse o [Firebase Console](https://console.firebase.google.com) e crie um projeto.
-2. **Authentication → Sign-in method** → ative **Email/senha** e (opcional) **Google**.
-3. **Configurações do projeto → Contas de serviço → Gerar nova chave privada** — baixa um `.json`.
-4. Salve esse arquivo como `backend/firebase-credentials.json` (**dentro da pasta `backend/`**, não na raiz do repositório — o `docker-compose.yml` procura o arquivo relativo a essa pasta).
-
-### 3. Configure o `.env`
-
-```bash
-cp .env.example .env
-# Edite pelo menos SECRET_KEY e FIREBASE_PROJECT_ID
-```
-
-### 4. Suba os containers
-
-```bash
+cp .env.example .env        # edite SECRET_KEY e FIREBASE_PROJECT_ID
+# salve a chave da conta de serviço do Firebase como backend/firebase-credentials.json
 docker compose up -d --build
+# API: http://localhost:8010/docs (porta mapeada no docker-compose.yml)
 ```
 
-Isso sobe Postgres + API. A API roda as migrações automaticamente no
-startup (via SQLAlchemy `create_all` durante o lifespan). Confirme em
-http://localhost:8000/docs.
+Seed opcional: edite `FIREBASE_UID`/`USER_EMAIL` em `seed.py` e rode
+`docker compose exec api python seed.py`.
 
-> **Porta já em uso?** Se você já tem outro Postgres/API rodando nas
-> portas 5432/8000, edite os mapeamentos em `docker-compose.yml` (ex:
-> `"5435:5432"` e `"8010:8000"`) e ajuste `DATABASE_URL`/`DATABASE_URL_SYNC`
-> no `.env` de acordo (o host interno continua `db:5432`, só a porta
-> exposta no seu PC muda).
-
-### 5. Seed de dados (empresa + usuário admin + produtos demo)
-
-Edite `backend/seed.py`: troque `FIREBASE_UID` e `USER_EMAIL` pelo UID e
-email de um usuário que você criou em Authentication → Users no Firebase
-Console. Depois:
-
-```bash
-docker compose exec api python seed.py
-```
-
-Anote o `company_id` impresso — não é necessário pro app funcionar, mas
-ajuda a depurar direto no banco se precisar.
-
-> **Login sem editar o seed:** se você ativou o provedor **Google** no
-> passo 2, qualquer conta Google que logar pelo app ganha acesso
-> automático (role `operator`, vinculada à primeira empresa cadastrada) —
-> não precisa editar `seed.py` pra cada pessoa nova.
-
----
-
-## Backend — Setup local sem Docker
+## Backend — local sem Docker
 
 ```bash
 cd backend
-python -m venv venv
-source venv/bin/activate          # Windows: venv\Scripts\activate
-pip install -r requirements.txt
-cp .env.example .env
-# edite .env — DATABASE_URL apontando pra localhost em vez de "db"
+python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activate
+pip install -r requirements-dev.txt
+cp .env.example .env    # DATABASE_URL apontando pro seu Postgres
 alembic upgrade head
-python seed.py
 uvicorn app.main:app --reload
-# API: http://localhost:8000 — Docs: http://localhost:8000/docs
 ```
+
+## Backend — produção (Vercel + Neon)
+
+```bash
+cd backend
+vercel --prod
+```
+
+Variáveis em Vercel → Settings → Environment Variables:
+
+| Variável | Obrigatória | Observação |
+|---|---|---|
+| `DATABASE_URL` | Sim | Pode colar a URL da Neon como vem (`postgresql://...?sslmode=require`) — o código converte para asyncpg e desliga o cache de comandos no pooler |
+| `SECRET_KEY` | Sim | Mesma em todas as instâncias |
+| `FIREBASE_CREDENTIALS_JSON` | Sim | Conteúdo inteiro do JSON da conta de serviço |
+| `ALLOWED_ORIGINS` | Web | JSON (`["https://..."]`) ou lista separada por vírgula |
+| `DEBUG` | Não | `False` em produção |
+| `ANTHROPIC_API_KEY` / `ANTHROPIC_MODEL` | Não | Assistente de IA para perguntas livres |
+
+Saúde: `GET /health` (app) e `GET /health/db` (banco).
 
 ---
 
-## Frontend (Flutter)
-
-### Pré-requisitos
-
-- [Flutter SDK](https://docs.flutter.dev/get-started/install) instalado (`flutter doctor` sem erros bloqueantes).
-- Backend já rodando (passos acima).
-
-### 1. Configure o Firebase do app web/mobile
-
-O arquivo `lib/firebase_options.dart` já vem com a config web do projeto
-Firebase usado no desenvolvimento. Se você criou seu **próprio** projeto
-Firebase, gere o seu:
-
-```bash
-dart pub global activate flutterfire_cli
-flutterfire configure
-```
-
-Isso sobrescreve `lib/firebase_options.dart` com as chaves do seu projeto
-(essas chaves de app web/mobile não são segredo — só a chave de conta de
-serviço do backend é sensível).
-
-### 2. Aponte pra sua API
-
-Edite `lib/core/constants/app_constants.dart` → `baseUrl`:
-
-| Onde vai rodar | Valor |
-|---|---|
-| Emulador Android | `http://10.0.2.2:8000/api/v1` (padrão já configurado) |
-| iOS Simulator / Web / Desktop | `http://localhost:8000/api/v1` |
-| Dispositivo físico / produção | IP da máquina ou domínio real |
-
-### 3. Instale dependências e rode
+## App Flutter
 
 ```bash
 cd stockiq-flutter
 flutter pub get
-dart run build_runner build --delete-conflicting-outputs   # gera *.freezed.dart / *.g.dart
-flutter run -d chrome     # ou: flutter run -d edge / windows / android / ios
+flutter run -d chrome        # ou android / ios / windows
 ```
 
-Pra build de produção web (serve estático, sem hot reload):
+- Firebase próprio: `dart pub global activate flutterfire_cli && flutterfire configure`.
+- API: `lib/core/constants/app_constants.dart` → `baseUrl` (padrão: produção na Vercel).
+- Builds: `flutter build web` · `flutter build apk --release` · `flutter build ipa` (Mac).
+- O APK de release ainda é assinado com a chave de debug — para a Play Store, configure uma chave própria em `android/app/build.gradle`.
+
+### Lançar uma atualização
+
+1. Suba `appVersion` e escreva as novidades em `whatsNew` (`lib/core/services/update_service.dart`).
+2. Coloque o mesmo número em `version:` no `pubspec.yaml`.
+3. Ao abrir, o usuário vê "Olá, temos uma nova atualização para você :)". Na web, o app compara com o `version.json` publicado e oferece **Atualizar agora**.
+
+---
+
+## Endpoints principais (`/api/v1`)
+
+| Grupo | Rotas |
+|---|---|
+| Auth | `POST /auth/login` (token Firebase → JWT; primeiro login desconhecido cria empresa nova e vira admin) |
+| Usuários | `GET /users/me`, `GET/POST /users`, `PATCH/DELETE /users/{id}` |
+| Empresas/filiais | `/companies`, `/companies/{id}/branches` |
+| Produtos | `/products`, `/products/{id}/qr`, `/products/qr-labels/pdf`, `/products/scan/{qr}` (lista: `?limit=` até 500) |
+| Estoque | `/stock/low`, `/branches/{id}/stock`, `POST /movements`, `PUT /branches/{b}/stock/{p}/adjust` |
+| Financeiro | `/finance/summary?days=1`, `/finance?days=30` |
+| Padrões de caixa | `GET /box-standards`, `PUT/DELETE /box-standards/{product_id}` (admin) |
+| Distribuidoras | `GET/POST /distributors`, `PUT/DELETE /distributors/{id}` (admin) |
+| Clientes | `GET/POST /customers`, `PUT /customers/{id}` (vendedor/gerente) |
+| Pedidos | `GET /orders?status=abertos`, `GET /orders/summary`, `POST /orders`, `GET/PATCH /orders/{id}` |
+| Etapas | `POST /orders/{id}/transition`, `PUT /orders/{id}/items/{item_id}/check` |
+| IA / análises | `POST /ai/ask`, `/analytics/report/pdf` |
+
+---
+
+## Testes
 
 ```bash
-flutter build web
-# serve build/web com qualquer servidor estático, ex:
-python -m http.server 5173 --directory build/web
+cd backend && pip install -r requirements-dev.txt && pytest tests -v   # 10 testes
+cd stockiq-flutter && flutter test && flutter analyze                   # 13 testes
 ```
 
-> Se o `build_runner` travar com erro em `retrofit_generator`: o pacote
-> não é usado no código (era dependência morta) e já foi removido do
-> `pubspec.yaml`. Se voltar a acontecer com outro gerador, rode
-> `flutter pub get` de novo antes de tentar o build.
+Teste de carga em produção (24/10/2026): 6.750 requisições até 300 simultâneas,
+0 erros. Detalhes no dossiê, seção 12.
 
 ---
 
-## Fluxo de autenticação
+## Solução de problemas
 
-```
-Flutter                    Firebase              Backend
-  │                           │                    │
-  ├─ signInWithEmailAndPassword ──►                 │
-  │  (ou signInWithPopup do Google)                 │
-  │                           ├─── idToken ────────►│
-  │                           │                    ├─ verify_firebase_token()
-  │                           │                    ├─ busca User por firebase_uid
-  │                           │                    ├─ (se não achar: vincula por
-  │                           │                    │   email OU auto-cadastra
-  │                           │                    │   como operator)
-  │◄──────────────────── JWT interno ───────────────┤
-  │                           │                    │
-  ├─ GET /api/v1/products  ───────────────────────►│
-  │   Authorization: Bearer <JWT>                  │
-  │◄────────────────── 200 produtos ───────────────┤
-```
-
----
-
-## Endpoints principais
-
-### Auth
-| Método | Rota | Descrição |
+| Sintoma | Causa provável | Correção |
 |---|---|---|
-| POST | `/api/v1/auth/login` | Login com Firebase idToken → JWT (auto-cadastra no primeiro login com Google) |
-
-### Usuários
-| Método | Rota | Role mínimo |
-|---|---|---|
-| GET | `/api/v1/users/me` | operator |
-| GET | `/api/v1/users` | manager |
-| POST | `/api/v1/users` | admin |
-| PATCH | `/api/v1/users/{id}` | admin |
-| DELETE | `/api/v1/users/{id}` | admin |
-
-### Empresas & Filiais
-| Método | Rota | Role mínimo |
-|---|---|---|
-| GET | `/api/v1/companies` | admin |
-| POST | `/api/v1/companies` | admin |
-| GET | `/api/v1/companies/{id}/branches` | operator |
-| POST | `/api/v1/companies/{id}/branches` | admin |
-
-### Produtos
-| Método | Rota | Role mínimo |
-|---|---|---|
-| GET | `/api/v1/products?q=nome` | operator |
-| POST | `/api/v1/products` | manager |
-| GET | `/api/v1/products/{id}` | operator |
-| PATCH | `/api/v1/products/{id}` | manager |
-| DELETE | `/api/v1/products/{id}` | admin |
-| GET | `/api/v1/products/{id}/qr` | operator |
-| GET | `/api/v1/products/qr-labels/pdf` | operator — PDF com etiqueta (QR + nome + SKU) de cada produto ativo, pra imprimir |
-| GET | `/api/v1/products/scan/{qr_payload}` | operator |
-
-### Estoque & Movimentações
-| Método | Rota | Descrição |
-|---|---|---|
-| GET | `/api/v1/stock/low` | Estoques abaixo do mínimo |
-| GET | `/api/v1/branches/{id}/stock` | Estoque de uma filial |
-| GET | `/api/v1/movements` | Últimas movimentações |
-| POST | `/api/v1/movements` | Registrar entrada/saída/transfer |
-| PUT | `/api/v1/branches/{b}/stock/{p}/adjust` | Ajuste direto (admin) |
-
-### Financeiro
-| Método | Rota | Descrição |
-|---|---|---|
-| GET | `/api/v1/finance/summary?days=1` | Receita, custo e lucro do período (default: hoje) |
-| GET | `/api/v1/finance?days=30` | Lançamentos financeiros recentes |
-
-Toda saída de estoque (`saida`) lança automaticamente uma receita (qtd ×
-preço de venda) e um custo/CMV (qtd × preço de custo) na tabela
-`finances`, com o preço vigente no momento da venda — não recalcula
-retroativamente se o preço do produto mudar depois. `transfer` não lança
-nada (não é venda, é troca de filial).
-
-Uma saída pode vir com `has_art` e/ou `has_border` marcados (as duas são
-independentes, podem sair juntas — ordem de produção sempre arte antes de
-borda). Cada uma soma uma sobretaxa de mão de obra fixa (ver
-`ART_SURCHARGE`/`BORDER_SURCHARGE` em `finance_service.py`). Produtos
-"ecológicos" não aceitam `has_border` (o material derrete no processo) —
-validado em `StockService`, retorna 422.
-
-Toda janela de tempo do financeiro ("hoje", "últimos N dias") usa o
-calendário de Brasília (`America/Sao_Paulo`), não UTC — ver
-`app/core/timezone.py`. O banco continua guardando `created_at` em UTC
-(boa prática), só a fronteira do "dia" é calculada em horário local.
-
-### IA / Assistente
-| Método | Rota | Descrição |
-|---|---|---|
-| POST | `/api/v1/ai/ask` | Perguntas comuns (estoque baixo, produto parado, queda de vendas, onde tô perdendo dinheiro) respondem na hora com dados reais, sem custo de IA. Pergunta fora desses padrões cai pro Claude, se `ANTHROPIC_API_KEY` estiver configurada — senão retorna aviso pedindo a chave. |
-
----
-
-## Roles (RBAC)
-
-| Role | Permissões |
-|---|---|
-| `admin` | Tudo |
-| `manager` | Criar/editar produtos, ver usuários da empresa |
-| `operator` | Consultar e registrar movimentações |
-
----
-
-## Tipos de movimentação
-
-| Tipo | Efeito |
-|---|---|
-| `entrada` | Aumenta estoque na filial |
-| `saida` | Diminui estoque (valida saldo). Preencha "observações" se retirou menos que uma caixa/lote fechado. |
-| `transfer` | Saída de uma filial + entrada em outra |
-| `ajuste` | Define quantidade exata (admin) |
-
----
-
-## Solução de problemas comuns
-
-| Sintoma | Causa provável | Fix |
-|---|---|---|
-| Container `stockiq_api` não sobe: erro de mount em `firebase-credentials.json` | Arquivo não existe em `backend/` (só na raiz do repo, ou não foi baixado) | Confira o passo 2 do setup — o arquivo precisa estar dentro de `backend/` |
-| `IsADirectoryError` no boot da API | Docker criou um diretório vazio no lugar do arquivo (aconteceu de tentar subir sem o arquivo existir antes) | `docker compose down`, apague a pasta com esse nome, coloque o arquivo de verdade, suba de novo |
-| Tela do app fica branca sem erro nenhum | Alguma exceção não tratada travou o `main()` antes do primeiro frame (comum: chamada que espera configuração que não existe, tipo Firebase Messaging sem service worker no web) | Roda com `flutter run` (não `build`) pra ver o erro real no terminal, ou abre o DevTools do navegador (F12 → Console) |
-| Tela cinza sólida em alguma rota (sem crash no terminal) | Em build release, widget que lançou exceção no `build()` vira uma caixa cinza sem texto (por design do Flutter) — rode em modo debug pra ver o erro de verdade | `flutter run` local, reproduzir a mesma navegação |
-| Login dá erro de CORS no navegador | Origem do Flutter Web (porta do `flutter run`/servidor estático) não está em `ALLOWED_ORIGINS` no `.env` do backend | Adicione a origem (ex: `http://localhost:5173`) e reinicie o container (`docker compose up -d --force-recreate api` — `restart` sozinho não relê o `.env`) |
-| `TypeError: "0.00": type 'String' is not a subtype of type 'num'` | Preço vem como `Decimal`/string do backend, já corrigido no modelo Flutter (`ProductModel`) | Se acontecer de novo em outro campo numérico, mesma causa — adicionar conversor `fromJson` |
-| Botão "Registrar movimentação" sem produto pra escolher / sempre dá "Selecione produto e filial" | Tela foi aberta sem `productId` pré-selecionado e não tinha seletor | Já corrigido — a tela agora mostra um dropdown de produtos quando abre "do zero" (ex: botão `+` da tela Estoque) |
-| `error mounting ... not a directory` de novo, mesmo com o arquivo certo em `backend/` | Sobrou um diretório vazio com o mesmo nome do arquivo de credencial (Docker cria isso quando o volume é montado antes do arquivo existir) | Apague o diretório (`rmdir` ou `Remove-Item -Recurse`), rode `docker compose build --no-cache api` antes de subir de novo |
+| App desloga depois de um tempo fechado | Versão antiga do app (sem renovação de sessão) | Atualizar para 1.1.0+ |
+| Primeira tela demora alguns segundos | Cold start da Vercel / Neon dormindo | Normal; o app tenta de novo sozinho |
+| "Produto sem padrão de caixa" ao criar pedido | Modelo sem padrão cadastrado | Admin: Gestão → Padrões de caixa |
+| "Pedido com arte/borda passa pela produção primeiro" | Expedição tentou pular a produção | Produção inicia o pedido |
+| "Confira todas as caixas antes de finalizar" | Conferência incompleta | Ajustar a contagem de cada item |
+| Login dá erro de CORS no navegador | Origem fora de `ALLOWED_ORIGINS` | Adicionar a origem e redeployar |
+| Container `stockiq_api` não sobe (mount de `firebase-credentials.json`) | Arquivo fora de `backend/` | Colocar o arquivo em `backend/` |
+| Tela cinza em build release | Exceção no `build()` de algum widget | Rodar com `flutter run` para ver o erro |
 
 ---
 
 ## Próximos passos
 
-- [x] App Flutter conectado à API (web funcionando; mobile precisa de config Firebase própria via `flutterfire configure`)
-- [x] Respostas padrão no Assistente sem depender de IA paga
-- [x] Etiquetas QR em PDF pra imprimir
-- [x] Financeiro: receita/custo/lucro lançados automaticamente por movimentação de saída
-- [x] Relatório PDF executivo com um clique no dashboard (`/analytics/report/pdf`)
-- [ ] Notificações push (Firebase Cloud Messaging) — desativadas no web por falta de `firebase-messaging-sw.js`/VAPID key
-- [ ] Analytics IA: previsão de demanda (`/analytics/forecast` já existe no backend, falta tela no app)
+- [x] Pedidos com produção, separação, conferência e despacho
+- [x] Padrão de caixa, distribuidoras, clientes, setores
+- [x] Visual iOS (claro/escuro), sessão persistente, aviso de atualização, 404
+- [x] API estável na Vercel + teste de carga
+- [ ] Publicar app web e APK com chave de release; TestFlight
+- [ ] Paginação acima de 500 produtos; rate limit na API
+- [ ] QR Code na conferência; etiqueta de volume da carga
+- [ ] Tela de previsão de demanda (`/analytics/forecast` já existe)
