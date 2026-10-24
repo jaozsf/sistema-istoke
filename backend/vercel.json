@@ -1,12 +1,37 @@
 {
   "builds": [
-    { "src": "api/index.py", "use": "@vercel/python", "config": { "excludeFiles": "public/**" } },
-    { "src": "public/**", "use": "@vercel/static" }
+    {
+      "src": "api/index.py",
+      "use": "@vercel/python",
+      "config": {
+        "excludeFiles": "public/**"
+      }
+    },
+    {
+      "src": "public/**",
+      "use": "@vercel/static"
+    }
   ],
   "routes": [
-    { "src": "/api/(.*)", "dest": "api/index.py" },
-    { "src": "/(health|health/db|docs|redoc|openapi[.]json)", "dest": "api/index.py" },
-    { "src": "/", "dest": "/public/index.html" },
-    { "src": "/(.*)", "dest": "/public/$1" }
+    {
+      "src": "/api/(.*)",
+      "dest": "api/index.py"
+    },
+    {
+      "src": "/(health|health/db|docs|redoc|openapi[.]json)",
+      "dest": "api/index.py"
+    },
+    {
+      "src": "/(instalar|baixar|ios|android)/?",
+      "dest": "/public/instalar.html"
+    },
+    {
+      "src": "/",
+      "dest": "/public/index.html"
+    },
+    {
+      "src": "/(.*)",
+      "dest": "/public/$1"
+    }
   ]
 }

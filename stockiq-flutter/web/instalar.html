@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#04181C">
+  <title>Instalar StockIQ</title>
+  <meta name="description" content="Baixe o StockIQ para Android ou instale no iPhone.">
+  <link rel="icon" type="image/png" href="/favicon.png">
+  <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Comfortaa:wght@700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --abyss: #04181C; --deep: #0A4A55; --lagoon: #14918F; --aqua: #4FD8C4; --foam: #D4FBF3;
+      --bg: #02100F; --card: #0B2226; --line: #173A40; --text: #E8FBF7; --muted: #8FB5B0;
+    }
+    @media (prefers-color-scheme: light) {
+      :root { --bg: #F1F6F5; --card: #FFFFFF; --line: #DCE8E6; --text: #04181C; --muted: #5D7774; }
+    }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0; background: var(--bg); color: var(--text);
+      font: 16px/1.5 -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto, sans-serif;
+      padding: max(24px, env(safe-area-inset-top)) 16px max(32px, env(safe-area-inset-bottom));
+    }
+    main { max-width: 520px; margin: 0 auto; }
+    header { display: flex; align-items: center; gap: 12px; margin: 8px 0 6px; }
+    header img { width: 52px; height: 52px; border-radius: 13px; }
+    .brand { font-family: Comfortaa, sans-serif; font-weight: 700; font-size: 28px; letter-spacing: -.5px; }
+    .brand span { background: linear-gradient(90deg, var(--lagoon), var(--aqua)); -webkit-background-clip: text; background-clip: text; color: transparent; }
+    .lead { color: var(--muted); margin: 0 0 22px; }
+    .card { background: var(--card); border: 1px solid var(--line); border-radius: 18px; padding: 18px; margin-bottom: 14px; }
+    .card.highlight { border-color: var(--lagoon); box-shadow: 0 0 0 1px var(--lagoon) inset; }
+    h2 { font-size: 18px; margin: 0 0 4px; display: flex; align-items: center; gap: 8px; }
+    .tag { font-size: 11px; font-weight: 600; padding: 2px 8px; border-radius: 10px; background: var(--lagoon); color: #fff; }
+    p { margin: 6px 0; }
+    ol { padding-left: 20px; margin: 10px 0 4px; }
+    li { margin: 6px 0; }
+    .btn {
+      display: block; text-align: center; text-decoration: none; font-weight: 600; font-size: 16px;
+      padding: 14px; border-radius: 14px; margin-top: 12px;
+      background: linear-gradient(135deg, var(--deep), var(--lagoon), var(--aqua)); color: #fff;
+    }
+    .btn.secondary { background: transparent; color: var(--lagoon); border: 1.5px solid var(--lagoon); }
+    .ico { display: inline-block; min-width: 22px; text-align: center; }
+    .muted { color: var(--muted); font-size: 14px; }
+    footer { text-align: center; color: var(--muted); font-size: 13px; margin-top: 22px; }
+  </style>
+</head>
+<body>
+<main>
+  <header>
+    <img src="/icons/apple-touch-icon.png" alt="">
+    <div class="brand">Stock<span>IQ</span></div>
+  </header>
+  <p class="lead">Escolha o seu aparelho para instalar o app.</p>
+
+  <section class="card" id="ios">
+    <h2>📱 iPhone e iPad <span class="tag" id="ios-tag" hidden>seu aparelho</span></h2>
+    <p class="muted">Instala direto pelo Safari, sem App Store. Abre em tela cheia, com ícone e notificações.</p>
+    <ol>
+      <li>Abra este endereço no <b>Safari</b> (no Chrome do iPhone não aparece a opção).</li>
+      <li>Toque em <span class="ico">⎋</span><b>Compartilhar</b> (quadrado com seta para cima, na barra de baixo).</li>
+      <li>Role e toque em <b>Adicionar à Tela de Início</b>.</li>
+      <li>Toque em <b>Adicionar</b>. O ícone do StockIQ aparece junto dos seus apps.</li>
+      <li>Abra pelo ícone e faça login. Para receber notificações, permita quando o app pedir.</li>
+    </ol>
+    <a class="btn" href="/">Abrir o StockIQ no navegador</a>
+  </section>
+
+  <section class="card" id="android">
+    <h2>🤖 Android <span class="tag" id="android-tag" hidden>seu aparelho</span></h2>
+    <p class="muted">App completo, instalado pelo arquivo APK.</p>
+    <a class="btn" href="https://github.com/jaozsf/sistema-istoke/releases/latest/download/StockIQ.apk">Baixar APK</a>
+    <ol>
+      <li>Toque no arquivo baixado.</li>
+      <li>Se o Android pedir, permita <b>instalar apps desconhecidos</b> para o navegador.</li>
+      <li>Toque em <b>Instalar</b> (ou <b>Atualizar</b>, se já tinha a versão antiga).</li>
+    </ol>
+    <a class="btn secondary" href="/">Ou usar direto no navegador</a>
+  </section>
+
+  <section class="card">
+    <h2>💻 Computador</h2>
+    <p class="muted">Use no navegador. No Chrome ou Edge dá para instalar como app pelo ícone ⊕ na barra de endereço.</p>
+    <a class="btn secondary" href="/">Abrir o StockIQ</a>
+  </section>
+
+  <footer>Dúvidas? Fale com o administrador da sua empresa.</footer>
+</main>
+<script>
+  // Destaca o card do aparelho de quem abriu e sobe ele pro topo
+  var ua = navigator.userAgent || "";
+  var isIOS = /iPhone|iPad|iPod/.test(ua) || (navigator.platform === "MacIntel" && navigator.maxTouchPoints > 1);
+  var isAndroid = /Android/.test(ua);
+  var id = isIOS ? "ios" : isAndroid ? "android" : null;
+  if (id) {
+    var card = document.getElementById(id);
+    card.classList.add("highlight");
+    document.getElementById(id + "-tag").hidden = false;
+    card.parentNode.insertBefore(card, document.querySelector(".lead").nextSibling);
+  }
+</script>
+</body>
+</html>

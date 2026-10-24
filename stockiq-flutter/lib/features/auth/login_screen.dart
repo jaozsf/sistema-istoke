@@ -4,6 +4,7 @@ import 'package:go_router/go_router.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import '../../core/providers/auth_provider.dart';
 import '../../core/services/app_notifications.dart';
+import '../../core/services/install_hint.dart';
 import '../../core/services/stock_api_service.dart';
 import '../../core/theme/app_theme.dart';
 import '../../shared/widgets/app_widgets.dart';
@@ -269,6 +270,34 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       textAlign: TextAlign.center,
                     ),
                   ),
+
+                  if (shouldSuggestHomeScreenInstall) ...[
+                    const SizedBox(height: 20),
+                    Material(
+                      color: theme.colorScheme.primaryContainer,
+                      borderRadius: BorderRadius.circular(14),
+                      child: InkWell(
+                        borderRadius: BorderRadius.circular(14),
+                        onTap: openInstallPage,
+                        child: Padding(
+                          padding: const EdgeInsets.all(14),
+                          child: Row(
+                            children: [
+                              Icon(Icons.ios_share, color: theme.colorScheme.onPrimaryContainer),
+                              const SizedBox(width: 12),
+                              Expanded(
+                                child: Text(
+                                  'Instale no iPhone: toque em Compartilhar e depois em '
+                                  '"Adicionar à Tela de Início". Toque aqui para ver o passo a passo.',
+                                  style: TextStyle(fontSize: 13, color: theme.colorScheme.onPrimaryContainer),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
               ),
