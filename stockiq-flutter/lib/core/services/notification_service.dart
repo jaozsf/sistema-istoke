@@ -127,7 +127,7 @@ class NotificationService {
           importance: Importance.high,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
-          color: const Color(0xFF534AB7),
+          color: const Color(0xFF14918F),
         ),
         iOS: const DarwinNotificationDetails(
           presentAlert: true,
@@ -224,7 +224,7 @@ class NotificationService {
           importance: Importance.high,
           priority: Priority.high,
           icon: '@mipmap/ic_launcher',
-          color: const Color(0xFF534AB7),
+          color: const Color(0xFF14918F),
         ),
         iOS: const DarwinNotificationDetails(
           presentAlert: true,

@@ -120,6 +120,40 @@ class _BoxWithBarsPainter extends CustomPainter {
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
+// ── Logotipo (nome) ───────────────────────────────────────────────────────────
+
+/// Nome "StockIQ" em Comfortaa (geométrica arredondada) com o "IQ" no
+/// gradiente Lagoon. Fonte variável: o peso vem do eixo wght.
+class BrandWordmark extends StatelessWidget {
+  final double size;
+  final Color? color;
+  const BrandWordmark({super.key, this.size = 28, this.color});
+
+  @override
+  Widget build(BuildContext context) {
+    final base = color ?? Theme.of(context).colorScheme.onSurface;
+    final style = TextStyle(
+      fontFamily: 'Comfortaa',
+      fontSize: size,
+      fontWeight: FontWeight.w700,
+      fontVariations: const [FontVariation('wght', 700)],
+      letterSpacing: -size * .02,
+      height: 1.1,
+    );
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Text('Stock', style: style.copyWith(color: base)),
+        ShaderMask(
+          blendMode: BlendMode.srcIn,
+          shaderCallback: (r) => const LinearGradient(colors: [AppTheme.lagoon, AppTheme.aqua]).createShader(r),
+          child: Text('IQ', style: style.copyWith(color: Colors.white)),
+        ),
+      ],
+    );
+  }
+}
+
 // ── Metric Card ───────────────────────────────────────────────────────────────
 
 class MetricCard extends StatelessWidget {
@@ -254,8 +288,8 @@ class ShimmerCard extends StatelessWidget {
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
     return Shimmer.fromColors(
-      baseColor:  isDark ? const Color(0xFF2A2A2A) : const Color(0xFFEEEEEE),
-      highlightColor: isDark ? const Color(0xFF3A3A3A) : const Color(0xFFF5F5F5),
+      baseColor:  isDark ? const Color(0xFF0B2226) : const Color(0xFFE3EEEC),
+      highlightColor: isDark ? const Color(0xFF173A40) : const Color(0xFFF4FAF9),
       child: Container(
         height: height,
         decoration: BoxDecoration(

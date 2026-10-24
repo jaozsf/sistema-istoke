@@ -164,7 +164,7 @@ Não invente dados que não estão no contexto.
 
     client = anthropic.AsyncAnthropic(api_key=settings.ANTHROPIC_API_KEY)
     message = await client.messages.create(
-        model="claude-sonnet-4-20250514",
+        model=settings.ANTHROPIC_MODEL,
         max_tokens=1024,
         system=system_prompt,
         messages=[{"role": "user", "content": question}],

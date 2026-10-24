@@ -10,6 +10,11 @@ class UserRole(str, enum.Enum):
     admin    = "admin"
     manager  = "manager"
     operator = "operator"
+    # Setores do fluxo de pedido (vendedor -> produção -> expedição).
+    # Postgres: valores novos entram via ALTER TYPE no startup/migração 0003.
+    seller     = "seller"
+    production = "production"
+    shipping   = "shipping"
 
 
 class User(Base):

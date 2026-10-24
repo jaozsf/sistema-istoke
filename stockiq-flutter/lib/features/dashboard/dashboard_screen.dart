@@ -3,6 +3,8 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../core/providers/auth_provider.dart';
+import '../../core/providers/logistics_providers.dart';
+import '../../shared/models/logistics_models.dart';
 import '../../core/providers/stock_providers.dart';
 import '../../core/providers/theme_provider.dart';
 import '../../core/services/app_notifications.dart';
@@ -44,6 +46,7 @@ class DashboardScreen extends ConsumerWidget {
     final movements = ref.watch(movementsProvider);
     final finance   = ref.watch(financeSummaryProvider(1));
     final themeMode = ref.watch(themeModeProvider);
+    final orders    = ref.watch(orderSummaryProvider);
 
     // Avisa (notificação real do SO/navegador) quando o estoque baixo
     // muda de "sem alerta" pra "tem alerta" — dispara uma vez por troca
@@ -167,6 +170,7 @@ class DashboardScreen extends ConsumerWidget {
         onRefresh: () async {
           ref.invalidate(lowStockProvider);
           ref.invalidate(movementsProvider);
+          ref.invalidate(orderSummaryProvider);
         },
         child: ListView(
           padding: const EdgeInsets.all(16),
@@ -229,6 +233,51 @@ class DashboardScreen extends ConsumerWidget {
                     ],
                   ),
                   const SizedBox(height: 20),
+
+                  // Esteira de pedidos (vendedor -> produção -> expedição)
+                  orders.maybeWhen(
+                    data: (s) => Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SectionHeader(title: 'Esteira de pedidos', action: 'Abrir', onAction: () => context.go('/orders')),
+                        const SizedBox(height: 8),
+                        Row(
+                          children: [
+                            for (final st in OrderStage.flow)
+                              Expanded(
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(horizontal: 3),
+                                  child: Material(
+                                    color: Theme.of(context).colorScheme.surface,
+                                    borderRadius: BorderRadius.circular(14),
+                                    child: InkWell(
+                                      borderRadius: BorderRadius.circular(14),
+                                      onTap: () => context.go('/orders'),
+                                      child: Padding(
+                                        padding: const EdgeInsets.symmetric(vertical: 12),
+                                        child: Column(
+                                          children: [
+                                            Icon(st.icon, size: 18, color: st.color),
+                                            const SizedBox(height: 4),
+                                            Text('${s.of(st)}', style: Theme.of(context).textTheme.titleLarge),
+                                            Text(st.label,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: Theme.of(context).textTheme.labelSmall),
+                                          ],
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                              ),
+                          ],
+                        ),
+                        const SizedBox(height: 20),
+                      ],
+                    ),
+                    orElse: () => const SizedBox(),
+                  ),
 
                   // Alertas de estoque baixo
                   lowStock.when(

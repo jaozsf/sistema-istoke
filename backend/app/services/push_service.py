@@ -23,6 +23,8 @@ async def send_push(tokens: list[str], title: str, body: str, data: Optional[dic
     )
 
     try:
+        from app.core.firebase import init_firebase
+        init_firebase()
         # messaging.send_each_for_multicast faz chamada HTTP síncrona --
         # roda em threadpool pra não travar o event loop do FastAPI.
         response = await run_in_threadpool(messaging.send_each_for_multicast, message)

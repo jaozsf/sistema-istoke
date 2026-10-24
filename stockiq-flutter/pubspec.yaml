@@ -32,6 +32,7 @@ dependencies:
   go_router: ^13.2.0
 
   # UI
+  cupertino_icons: ^1.0.8
   flutter_svg: ^2.0.10+1
   cached_network_image: ^3.3.1
   shimmer: ^3.0.0
@@ -84,6 +85,12 @@ flutter:
     - assets/images/
     - assets/icons/
     - assets/lottie/
+  fonts:
+    # Comfortaa (OFL, Google Fonts) -- só no logotipo "StockIQ"; o resto do
+    # app usa a fonte do sistema (SF Pro no iPhone).
+    - family: Comfortaa
+      fonts:
+        - asset: assets/fonts/Comfortaa.ttf
   # fonts: # TEMP: arquivos .ttf nao existem no repo, precisa adicionar em assets/fonts/
   #   - family: Inter
   #     fonts:

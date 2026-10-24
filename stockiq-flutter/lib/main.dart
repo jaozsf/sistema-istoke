@@ -1,3 +1,4 @@
+import 'dart:async' show unawaited;
 import 'dart:io' show Platform;
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
@@ -5,7 +6,10 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:intl/date_symbol_data_local.dart';
+import 'core/providers/auth_provider.dart';
 import 'core/providers/theme_provider.dart';
+import 'core/services/api_service.dart';
+import 'core/services/auth_service.dart';
 import 'core/router.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
@@ -40,11 +44,10 @@ void main() async {
     ]);
   }
 
-  // Status bar transparente
-  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-    statusBarColor: Colors.transparent,
-    statusBarIconBrightness: Brightness.dark,
-  ));
+  // Status bar transparente (cor dos ícones acompanha o tema, ver
+  // AnnotatedRegion em StockIQApp)
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(statusBarColor: Colors.transparent));
+  if (!kIsWeb) SystemChrome.setEnabledSystemUIMode(SystemUiMode.edgeToEdge);
 
   // Locale pt_BR pro DateFormat (usado no dashboard) -- sem isso o intl
   // lanca LocaleDataException e o widget quebra em silencio (tela cinza)
@@ -57,9 +60,26 @@ void main() async {
 
   // Pedido de permissão de notificação fica pro login (perto de um gesto
   // do usuário — navegador tende a bloquear pedido feito sem interação).
+  final container = ProviderContainer();
+
+  // Sessão não cai mais quando o JWT expira com o app fechado: o
+  // ApiService renova pelo Firebase e só desloga se isso falhar.
+  AuthService.installSessionRefresh(
+    onExpired: () {
+      // Guarda: o próprio signOut chama a API (remover token de push), que
+      // pode dar 401 de novo e cair aqui -- sem isso vira loop.
+      final auth = container.read(authStateProvider);
+      if (auth.isLoading || !(auth.valueOrNull?.isLoggedIn ?? false)) return;
+      container.read(authStateProvider.notifier).signOut();
+    },
+  );
+  // Acorda backend/banco em paralelo com o boot (cold start da Vercel)
+  unawaited(ApiService.instance.warmUp());
+
   runApp(
-    const ProviderScope(
-      child: StockIQApp(),
+    UncontrolledProviderScope(
+      container: container,
+      child: const StockIQApp(),
     ),
   );
 }
@@ -79,13 +99,28 @@ class StockIQApp extends ConsumerWidget {
       darkTheme:  AppTheme.dark,
       themeMode:  themeMode,
       routerConfig: router,
+      // Rolagem elástica estilo iOS em toda plataforma
+      scrollBehavior: const _IosScrollBehavior(),
       builder: (context, child) {
-        // Aplica escala de texto fixa (evita quebras de layout)
-        return MediaQuery(
-          data: MediaQuery.of(context).copyWith(textScaler: TextScaler.noScaling),
-          child: child!,
+        final dark = Theme.of(context).brightness == Brightness.dark;
+        // Respeita o tamanho de texto do sistema (acessibilidade do iPhone),
+        // mas trava num teto pra não quebrar layout.
+        return AnnotatedRegion<SystemUiOverlayStyle>(
+          value: dark ? SystemUiOverlayStyle.light : SystemUiOverlayStyle.dark,
+          child: MediaQuery.withClampedTextScaling(
+            maxScaleFactor: 1.25,
+            child: child!,
+          ),
         );
       },
     );
   }
+}
+
+class _IosScrollBehavior extends MaterialScrollBehavior {
+  const _IosScrollBehavior();
+
+  @override
+  ScrollPhysics getScrollPhysics(BuildContext context) =>
+      const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics());
 }

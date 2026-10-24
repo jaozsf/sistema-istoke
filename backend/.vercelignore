@@ -1,0 +1,14 @@
+# Não sobe pro deploy: segredo local, ferramentas e lixo de dev.
+.env*
+firebase-credentials*.json
+tests/
+alembic/
+alembic.ini
+seed*.py
+docker-compose.yml
+Dockerfile
+requirements-dev.txt
+.agents/
+.claude/
+skills-lock.json
+**/__pycache__/

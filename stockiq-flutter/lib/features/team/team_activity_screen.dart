@@ -10,8 +10,8 @@ import '../../shared/models/movement_model.dart';
 import '../../shared/models/user_model.dart';
 import '../../shared/widgets/app_widgets.dart';
 
-const _roles = ['operator', 'manager', 'admin'];
-const _roleLabels = {'operator': 'Operador', 'manager': 'Gerente', 'admin': 'Admin'};
+const _roles = ['seller', 'production', 'shipping', 'operator', 'manager', 'admin'];
+const _roleLabels = roleLabels;
 
 /// Painel do admin/manager: aba 1 mostra o que cada funcionário fez
 /// (movimentação por movimentação); aba 2 cadastra pessoas e define cargo.

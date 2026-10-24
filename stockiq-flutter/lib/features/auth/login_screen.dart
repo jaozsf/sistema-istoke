@@ -164,7 +164,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                     children: [
                       const AppLogo(size: 48),
                       const SizedBox(width: 12),
-                      Text('StockIQ', style: theme.textTheme.headlineMedium?.copyWith(fontSize: 26)),
+                      const BrandWordmark(size: 30),
                     ],
                   ),
                   const SizedBox(height: 8),
@@ -332,7 +332,7 @@ class _LoginSkeleton extends StatelessWidget {
                     children: [
                       const AppLogo(size: 48),
                       const SizedBox(width: 12),
-                      Text('StockIQ', style: Theme.of(context).textTheme.headlineMedium?.copyWith(fontSize: 26)),
+                      const BrandWordmark(size: 30),
                     ],
                   ),
                   const SizedBox(height: 8),

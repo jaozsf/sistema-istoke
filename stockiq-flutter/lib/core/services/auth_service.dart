@@ -15,6 +15,39 @@ class AuthService {
   final _storage    = const FlutterSecureStorage();
   final _dio        = ApiService.instance.client;
 
+  /// Liga a renovação automática no ApiService. Chamado uma vez no boot.
+  /// [onExpired] roda só quando a renovação falha de vez.
+  static void installSessionRefresh({required void Function() onExpired}) {
+    final service = AuthService();
+    ApiService.tokenRefresher = service.refreshSession;
+    ApiService.onSessionExpired = onExpired;
+  }
+
+  /// JWT da API expirou (app ficou fechado), mas a sessão do Firebase
+  /// continua salva no aparelho -- pega um ID token novo e troca por outro
+  /// JWT, sem pedir login. Retorna null se não houver sessão Firebase.
+  Future<String?> refreshSession() async {
+    // No boot o Firebase restaura o usuário de forma assíncrona; currentUser
+    // pode ainda estar null nos primeiros ms.
+    final firebaseUser = _auth.currentUser ??
+        await _auth.authStateChanges().first.timeout(const Duration(seconds: 5), onTimeout: () => null);
+    if (firebaseUser == null) return null;
+
+    final idToken = await firebaseUser.getIdToken(true);
+    // Dio "cru": não passa pelo interceptor (evita loop 401 -> refresh -> 401)
+    final resp = await Dio(BaseOptions(
+      baseUrl: AppConstants.baseUrl,
+      connectTimeout: AppConstants.connectTimeout,
+      receiveTimeout: AppConstants.receiveTimeout,
+    )).post('/auth/login', data: {'firebase_id_token': idToken});
+
+    final token = resp.data['access_token'] as String;
+    final user  = UserModel.fromJson(resp.data['user'] as Map<String, dynamic>);
+    await _storage.write(key: AppConstants.tokenKey, value: token);
+    await _storage.write(key: AppConstants.userKey, value: userModelToJson(user));
+    return token;
+  }
+
   // ── Login ────────────────────────────────────────────────────────────────────
 
   Future<UserModel> signIn(String email, String password) async {
@@ -151,11 +184,17 @@ class AuthService {
 }
 
 // Helpers de serialização (sem code gen extra)
-String userModelToJson(UserModel u) =>
-    '{"id":"${u.id}","firebase_uid":${u.firebaseUid != null ? '"${u.firebaseUid}"' : 'null'},"email":"${u.email}",'
-    '"full_name":"${u.fullName}","role":"${u.role}","is_active":${u.isActive},'
-    '"company_id":"${u.companyId}","branch_id":${u.branchId != null ? '"${u.branchId}"' : 'null'},'
-    '"created_at":"${u.createdAt}"}';
+String userModelToJson(UserModel u) => jsonEncode({
+      'id': u.id,
+      'firebase_uid': u.firebaseUid,
+      'email': u.email,
+      'full_name': u.fullName,
+      'role': u.role,
+      'is_active': u.isActive,
+      'company_id': u.companyId,
+      'branch_id': u.branchId,
+      'created_at': u.createdAt,
+    });
 
 UserModel userModelFromJson(String json) {
   return UserModel.fromJson(jsonDecode(json) as Map<String, dynamic>);

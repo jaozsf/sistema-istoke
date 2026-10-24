@@ -36,6 +36,10 @@ def verify_firebase_token(id_token: str) -> dict:
     Verifica o token JWT emitido pelo Firebase Auth.
     Retorna o payload decodificado com uid, email, etc.
     """
+    # Lazy: em serverless o lifespan pode não ter rodado nessa instância
+    # (ou ter falhado) -- sem app inicializado o verify estoura com
+    # "default Firebase app does not exist".
+    init_firebase()
     try:
         decoded = auth.verify_id_token(id_token)
         return decoded

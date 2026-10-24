@@ -1,4 +1,7 @@
+import 'dart:ui' show ImageFilter;
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'theme/app_theme.dart';
@@ -16,12 +19,27 @@ import '../features/qr/qr_viewer_screen.dart';
 import '../features/ai_assistant/ai_assistant_screen.dart';
 import '../features/notifications/notifications_screen.dart';
 import '../features/team/team_activity_screen.dart';
+import '../features/orders/orders_screen.dart';
+import '../features/orders/order_detail_screen.dart';
+import '../features/orders/order_form_screen.dart';
+import '../features/admin/admin_hub_screen.dart';
+import '../features/admin/box_standards_screen.dart';
+import '../features/admin/distributors_screen.dart';
+import '../features/admin/customers_screen.dart';
 import '../shared/models/user_model.dart';
 import 'providers/auth_provider.dart';
 
-// Rotas que só admin/manager pode ver — funcionário (operator) que tentar
-// acessar é jogado de volta pra /products.
+// Rotas que só admin/manager pode ver — outros setores são jogados pra
+// tela inicial do próprio setor.
 const _managerOnlyRoutes = ['/dashboard', '/ai', '/team-activity'];
+
+/// Tela inicial de cada setor.
+String homeFor(UserModel? u) {
+  if (u == null) return '/login';
+  if (u.isManager) return '/dashboard';
+  if (u.isSeller || u.isProduction || u.isShipping) return '/orders';
+  return '/products';
+}
 
 // Navegar a partir de fora da árvore de widgets (ex: tap numa notificação
 // push, sem BuildContext próprio) -- ver NotificationService.
@@ -38,12 +56,14 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isAuth = state.matchedLocation.startsWith('/login');
 
       if (!isLoggedIn && !isAuth) return '/login';
-      if (isLoggedIn && isAuth) return '/dashboard';
+      final user = ref.read(currentUserProvider);
+      if (isLoggedIn && isAuth) return homeFor(user);
 
       if (isLoggedIn) {
-        final user = ref.read(currentUserProvider);
-        final isManagerOnlyRoute = _managerOnlyRoutes.any((r) => state.matchedLocation.startsWith(r));
-        if (isManagerOnlyRoute && !(user?.isManager ?? false)) return '/products';
+        final loc = state.matchedLocation;
+        final isManagerOnlyRoute = _managerOnlyRoutes.any((r) => loc.startsWith(r));
+        if (isManagerOnlyRoute && !(user?.isManager ?? false)) return homeFor(user);
+        if (loc.startsWith('/customers') && !(user?.canSell ?? false)) return homeFor(user);
       }
       return null;
     },
@@ -88,6 +108,24 @@ final routerProvider = Provider<GoRouter>((ref) {
           GoRoute(path: '/ai',             builder: (_, __) => const AiAssistantScreen()),
           GoRoute(path: '/team-activity',  builder: (_, __) => const TeamActivityScreen()),
           GoRoute(path: '/notifications',  builder: (_, __) => const NotificationsScreen()),
+          GoRoute(
+            path: '/orders',
+            builder: (_, __) => const OrdersScreen(),
+            routes: [
+              GoRoute(path: 'new', builder: (_, __) => const OrderFormScreen()),
+              GoRoute(path: ':id', builder: (_, s) => OrderDetailScreen(id: s.pathParameters['id']!)),
+            ],
+          ),
+          GoRoute(path: '/customers', builder: (_, __) => const CustomersScreen()),
+          GoRoute(
+            path: '/admin',
+            builder: (_, __) => const AdminHubScreen(),
+            routes: [
+              GoRoute(path: 'boxes',        builder: (_, __) => const BoxStandardsScreen()),
+              GoRoute(path: 'distributors', builder: (_, __) => const DistributorsScreen()),
+              GoRoute(path: 'customers',    builder: (_, __) => const CustomersScreen()),
+            ],
+          ),
         ],
       ),
     ],
@@ -97,10 +135,10 @@ final routerProvider = Provider<GoRouter>((ref) {
   );
 });
 
-// ── Shell com BottomNavigationBar ─────────────────────────────────────────────
+// ── Shell com tab bar ─────────────────────────────────────────────────────────
 
-/// Um item de navegação -- alimenta tanto BottomNavigationBarItem (mobile)
-/// quanto NavigationRailDestination (tablet/desktop) sem duplicar a lista.
+/// Um item de navegação -- alimenta tanto o tab bar (mobile) quanto
+/// NavigationRailDestination (tablet/desktop) sem duplicar a lista.
 typedef _NavItem = (IconData icon, IconData activeIcon, String label);
 
 class MainShell extends ConsumerWidget {
@@ -110,23 +148,28 @@ class MainShell extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final location = GoRouterState.of(context).matchedLocation;
-    final isManager = ref.watch(currentUserProvider)?.isManager ?? false;
+    final user = ref.watch(currentUserProvider);
+    final isManager = user?.isManager ?? false;
 
-    // Funcionário (operator) só mexe com produto/estoque/QR — dashboard e
-    // IA ficam reservados pro admin/manager (bloqueado também no redirect).
-    final routes = isManager
-        ? ['/dashboard', '/products', '/stock', '/qr', '/ai']
-        : ['/products', '/stock', '/qr'];
+    const _NavItem dashboardItem = (CupertinoIcons.square_grid_2x2, CupertinoIcons.square_grid_2x2_fill, 'Início');
+    const _NavItem ordersItem    = (CupertinoIcons.doc_text, CupertinoIcons.doc_text_fill, 'Pedidos');
+    const _NavItem customersItem = (CupertinoIcons.person_2, CupertinoIcons.person_2_fill, 'Clientes');
+    const _NavItem productsItem  = (CupertinoIcons.cube_box, CupertinoIcons.cube_box_fill, 'Produtos');
+    const _NavItem stockItem     = (CupertinoIcons.archivebox, CupertinoIcons.archivebox_fill, 'Estoque');
+    const _NavItem qrItem        = (CupertinoIcons.qrcode_viewfinder, CupertinoIcons.qrcode_viewfinder, 'QR Code');
+    final _NavItem moreItem      = (CupertinoIcons.gear_alt, CupertinoIcons.gear_alt_fill, isManager ? 'Gestão' : 'Conta');
 
-    const _NavItem dashboardItem = (Icons.dashboard_outlined, Icons.dashboard, 'Início');
-    const _NavItem productsItem  = (Icons.inventory_2_outlined, Icons.inventory_2, 'Produtos');
-    const _NavItem stockItem     = (Icons.warehouse_outlined, Icons.warehouse, 'Estoque');
-    const _NavItem qrItem        = (Icons.qr_code_scanner, Icons.qr_code_scanner, 'QR Code');
-    const _NavItem aiItem        = (Icons.auto_awesome_outlined, Icons.auto_awesome, 'IA');
-
-    final navItems = isManager
-        ? const [dashboardItem, productsItem, stockItem, qrItem, aiItem]
-        : const [productsItem, stockItem, qrItem];
+    // Cada setor vê só as abas do próprio trabalho (bloqueio de verdade fica
+    // no backend + redirect acima).
+    final List<(String, _NavItem)> tabs = switch (user) {
+      final u? when u.isManager    => [('/dashboard', dashboardItem), ('/orders', ordersItem), ('/products', productsItem), ('/stock', stockItem), ('/admin', moreItem)],
+      final u? when u.isSeller     => [('/orders', ordersItem), ('/customers', customersItem), ('/products', productsItem), ('/admin', moreItem)],
+      final u? when u.isProduction => [('/orders', ordersItem), ('/products', productsItem), ('/stock', stockItem), ('/admin', moreItem)],
+      final u? when u.isShipping   => [('/orders', ordersItem), ('/stock', stockItem), ('/qr', qrItem), ('/admin', moreItem)],
+      _                            => [('/products', productsItem), ('/stock', stockItem), ('/qr', qrItem), ('/admin', moreItem)],
+    };
+    final routes = [for (final t in tabs) t.$1];
+    final navItems = [for (final t in tabs) t.$2];
 
     var currentIndex = routes.indexWhere((r) => location.startsWith(r));
     if (currentIndex < 0) currentIndex = 0;
@@ -136,37 +179,43 @@ class MainShell extends ConsumerWidget {
     // produto) não, porque isso já anima via push normal do Navigator.
     final tabRoot = routes[currentIndex];
 
+    void go(int i) {
+      if (i != currentIndex) HapticFeedback.selectionClick();
+      context.go(routes[i]);
+    }
+
     final breakpoint = context.breakpoint;
     if (breakpoint == Breakpoint.mobile) {
       return Scaffold(
+        // Conteúdo passa por baixo do tab bar translúcido (como no iOS)
+        extendBody: true,
         body: _AnimatedTabBody(tabKey: tabRoot, child: child),
-        bottomNavigationBar: _PillNavBar(
-          items: navItems,
-          currentIndex: currentIndex,
-          onTap: (i) => context.go(routes[i]),
-        ),
+        bottomNavigationBar: _PillNavBar(items: navItems, currentIndex: currentIndex, onTap: go),
       );
     }
 
     final extended = breakpoint == Breakpoint.desktop;
+    final theme = Theme.of(context);
     return Scaffold(
       body: Row(
         children: [
           NavigationRail(
             extended: extended,
-            minExtendedWidth: 200,
+            minExtendedWidth: 210,
             selectedIndex: currentIndex,
-            onDestinationSelected: (i) => context.go(routes[i]),
+            onDestinationSelected: go,
+            backgroundColor: theme.scaffoldBackgroundColor,
+            indicatorColor: theme.colorScheme.primaryContainer,
             leading: Padding(
               padding: const EdgeInsets.symmetric(vertical: 12),
               child: extended
-                  ? Row(
+                  ? const Row(
                       mainAxisSize: MainAxisSize.min,
-                      children: const [
+                      children: [
                         SizedBox(width: 8),
                         AppLogo(size: 32),
                         SizedBox(width: 10),
-                        Text('StockIQ', style: TextStyle(fontWeight: FontWeight.w700, fontSize: 16)),
+                        BrandWordmark(size: 22),
                       ],
                     )
                   : const AppLogo(size: 32),
@@ -180,7 +229,7 @@ class MainShell extends ConsumerWidget {
                 ),
             ],
           ),
-          const VerticalDivider(width: 1),
+          VerticalDivider(width: .5, thickness: .5, color: theme.colorScheme.outline),
           Expanded(child: _AnimatedTabBody(tabKey: tabRoot, child: child)),
         ],
       ),
@@ -190,7 +239,7 @@ class MainShell extends ConsumerWidget {
 
 // ── Animação de troca de aba ──────────────────────────────────────────────────
 
-/// Fade + leve slide vertical ao trocar de aba do bottom nav / rail.
+/// Fade + leve slide vertical ao trocar de aba do tab bar / rail.
 /// Chaveado pela raiz da rota (não pela location completa) pra não disparar
 /// de novo quando o usuário só navega dentro da mesma aba.
 class _AnimatedTabBody extends StatelessWidget {
@@ -216,9 +265,8 @@ class _AnimatedTabBody extends StatelessWidget {
   }
 }
 
-/// Ícone ativo do bottom nav / rail "estoura" (pop-in) toda vez que vira o
-/// selecionado -- só um TweenAnimationBuilder de escala, sem controller
-/// manual pra manter (dispara sozinho quando o widget monta).
+/// Ícone ativo "estoura" (pop-in) toda vez que vira o selecionado -- só um
+/// TweenAnimationBuilder de escala, dispara sozinho quando o widget monta.
 class _PopIcon extends StatelessWidget {
   final IconData icon;
   final Color? color;
@@ -237,8 +285,8 @@ class _PopIcon extends StatelessWidget {
   }
 }
 
-/// Bottom nav com pill sólido deslizando atrás do item selecionado
-/// (em vez do BottomNavigationBar padrão do Flutter, sem esse efeito).
+/// Tab bar flutuante de vidro (blur + translúcido, estilo iOS) com pill
+/// em gradiente Lagoon deslizando atrás do item selecionado.
 class _PillNavBar extends StatelessWidget {
   final List<_NavItem> items;
   final int currentIndex;
@@ -247,57 +295,63 @@ class _PillNavBar extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final dark = theme.brightness == Brightness.dark;
     return SafeArea(
-      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 12),
-      child: Container(
-        padding: const EdgeInsets.all(6),
-        decoration: BoxDecoration(
-          color: Theme.of(context).colorScheme.surface,
-          borderRadius: BorderRadius.circular(28),
-          boxShadow: [
-            BoxShadow(color: Colors.black.withValues(alpha: .08), blurRadius: 16, offset: const Offset(0, 6)),
-          ],
-        ),
-        child: LayoutBuilder(
-          builder: (context, constraints) {
-            final slotWidth = constraints.maxWidth / items.length;
-            return SizedBox(
-              height: 56,
-              child: Stack(
-                children: [
-                  AnimatedPositioned(
-                    duration: const Duration(milliseconds: 280),
-                    curve: Curves.easeOutCubic,
-                    left: slotWidth * currentIndex,
-                    top: 0,
-                    bottom: 0,
-                    width: slotWidth,
-                    child: const Padding(
-                      padding: EdgeInsets.symmetric(horizontal: 2),
-                      child: DecoratedBox(
-                        decoration: BoxDecoration(
-                          color: AppTheme.primary,
-                          borderRadius: BorderRadius.all(Radius.circular(20)),
-                        ),
-                      ),
-                    ),
-                  ),
-                  Row(
+      minimum: const EdgeInsets.fromLTRB(16, 0, 16, 10),
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(30),
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 24, sigmaY: 24),
+          child: Container(
+            padding: const EdgeInsets.all(6),
+            decoration: BoxDecoration(
+              color: theme.colorScheme.surface.withValues(alpha: dark ? .72 : .8),
+              borderRadius: BorderRadius.circular(30),
+              border: Border.all(color: theme.colorScheme.outline.withValues(alpha: .7), width: .5),
+            ),
+            child: LayoutBuilder(
+              builder: (context, constraints) {
+                final slotWidth = constraints.maxWidth / items.length;
+                return SizedBox(
+                  height: 54,
+                  child: Stack(
                     children: [
-                      for (var i = 0; i < items.length; i++)
-                        Expanded(
-                          child: _PillNavItem(
-                            item: items[i],
-                            selected: i == currentIndex,
-                            onTap: () => onTap(i),
+                      AnimatedPositioned(
+                        duration: const Duration(milliseconds: 320),
+                        curve: Curves.easeOutBack,
+                        left: slotWidth * currentIndex,
+                        top: 0,
+                        bottom: 0,
+                        width: slotWidth,
+                        child: const Padding(
+                          padding: EdgeInsets.symmetric(horizontal: 2),
+                          child: DecoratedBox(
+                            decoration: BoxDecoration(
+                              gradient: AppTheme.brandGradient,
+                              borderRadius: BorderRadius.all(Radius.circular(24)),
+                            ),
                           ),
                         ),
+                      ),
+                      Row(
+                        children: [
+                          for (var i = 0; i < items.length; i++)
+                            Expanded(
+                              child: _PillNavItem(
+                                item: items[i],
+                                selected: i == currentIndex,
+                                onTap: () => onTap(i),
+                              ),
+                            ),
+                        ],
+                      ),
                     ],
                   ),
-                ],
-              ),
-            );
-          },
+                );
+              },
+            ),
+          ),
         ),
       ),
     );
@@ -313,11 +367,13 @@ class _PillNavItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final fg = selected ? Colors.white : Theme.of(context).colorScheme.onSurfaceVariant;
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        borderRadius: BorderRadius.circular(20),
-        onTap: onTap,
+    return GestureDetector(
+      behavior: HitTestBehavior.opaque,
+      onTap: onTap,
+      child: Semantics(
+        selected: selected,
+        button: true,
+        label: item.$3,
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
@@ -325,7 +381,7 @@ class _PillNavItem extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               item.$3,
-              style: TextStyle(color: fg, fontSize: 11, fontWeight: selected ? FontWeight.w600 : FontWeight.w400),
+              style: TextStyle(color: fg, fontSize: 10.5, fontWeight: selected ? FontWeight.w600 : FontWeight.w500),
             ),
           ],
         ),
