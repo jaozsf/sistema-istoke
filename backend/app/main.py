@@ -4,6 +4,7 @@ from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from sqlalchemy import text
+from sqlalchemy.exc import IntegrityError
 
 from app.core.config import settings
 from app.core.database import engine, Base
@@ -35,8 +36,13 @@ async def _prepare_schema() -> None:
     autocommit porque o Postgres não deixa usar o valor novo na mesma
     transação em que ele foi criado.
     """
-    async with engine.begin() as conn:
-        await conn.run_sync(Base.metadata.create_all)
+    try:
+        async with engine.begin() as conn:
+            await conn.run_sync(Base.metadata.create_all)
+    except IntegrityError:
+        # Duas instâncias serverless subindo juntas: a outra criou a tabela
+        # entre o "existe?" e o CREATE. Inofensivo -- segue pro enum.
+        logger.info("create_all concorrente com outra instância; tabelas já existem.")
     if engine.dialect.name != "postgresql":
         return
     async with engine.connect() as conn:
