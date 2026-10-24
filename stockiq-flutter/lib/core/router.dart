@@ -27,6 +27,7 @@ import '../features/admin/admin_hub_screen.dart';
 import '../features/admin/box_standards_screen.dart';
 import '../features/admin/distributors_screen.dart';
 import '../features/admin/customers_screen.dart';
+import '../features/errors/not_found_screen.dart';
 import '../shared/models/user_model.dart';
 import 'providers/auth_provider.dart';
 
@@ -130,9 +131,7 @@ final routerProvider = Provider<GoRouter>((ref) {
         ],
       ),
     ],
-    errorBuilder: (context, state) => Scaffold(
-      body: Center(child: Text('Rota não encontrada: ${state.uri}')),
-    ),
+    errorBuilder: (context, state) => const NotFoundScreen(),
   );
 });
 

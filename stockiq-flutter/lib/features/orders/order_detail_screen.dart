@@ -10,6 +10,8 @@ import '../../shared/models/user_model.dart';
 import '../../shared/widgets/app_widgets.dart';
 import '../../shared/widgets/ios_widgets.dart';
 import 'pickers.dart';
+import '../../core/services/api_service.dart';
+import '../errors/not_found_screen.dart';
 
 final _currency = NumberFormat.currency(locale: 'pt_BR', symbol: r'R$');
 final _dt = DateFormat("d MMM yyyy, HH:mm", 'pt_BR');
@@ -147,10 +149,17 @@ class _OrderDetailScreenState extends ConsumerState<OrderDetailScreen> {
 
     return async.when(
       loading: () => Scaffold(appBar: AppBar(), body: const Center(child: CupertinoActivityIndicator(radius: 14))),
-      error: (e, _) => Scaffold(
-        appBar: AppBar(),
-        body: ErrorState(message: e.toString(), onRetry: () => ref.invalidate(orderDetailProvider(widget.id))),
-      ),
+      error: (e, _) => e is ApiException && e.statusCode == 404
+          ? const Scaffold(
+              body: NotFoundView(
+                title: 'Pedido não encontrado',
+                message: 'Esse pedido não existe ou você não tem acesso a ele.',
+              ),
+            )
+          : Scaffold(
+              appBar: AppBar(),
+              body: ErrorState(message: e.toString(), onRetry: () => ref.invalidate(orderDetailProvider(widget.id))),
+            ),
       data: (order) {
         final canCheck = order.stage == OrderStage.emSeparacao &&
             ((user?.isShipping ?? false) || (user?.isManager ?? false));

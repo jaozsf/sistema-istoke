@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import '../errors/not_found_screen.dart';
+import '../../core/services/api_service.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
@@ -245,7 +247,9 @@ class ProductDetailScreen extends ConsumerWidget {
           ),
         ),
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => ErrorState(message: e.toString(), onRetry: () => ref.invalidate(productDetailProvider(id))),
+        error: (e, _) => e is ApiException && e.statusCode == 404
+            ? const NotFoundView(title: 'Produto não encontrado', message: 'Esse produto foi removido ou não existe.')
+            : ErrorState(message: e.toString(), onRetry: () => ref.invalidate(productDetailProvider(id))),
       ),
     );
   }
